@@ -1,0 +1,18 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+# Math engine
+sympy==1.13.3
+# AI services
+groq==0.13.0
+# Auth & DB
+supabase==2.11.0
+sqlalchemy==2.0.36
+alembic==1.14.0
+psycopg2-binary==2.9.10
+python-jose[cryptography]==3.3.0
+# Utilities
+python-multipart==0.0.20
+pydantic==2.10.4
+python-dotenv==1.0.1
+pillow==11.1.0
+httpx==0.28.1

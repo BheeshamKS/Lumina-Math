@@ -1,0 +1,112 @@
+/* ── App shell ──────────────────────────────────────────────────── */
+.app-shell {
+  display: flex;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Calculator FAB ─────────────────────────────────────────────── */
+.calc-fab {
+  position: fixed;
+  bottom: 86px;
+  right: 20px;
+  z-index: 50;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border-light);
+  background: var(--card);
+  color: var(--cream-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+.calc-fab:hover {
+  background: var(--card-raised);
+  color: var(--amber);
+  border-color: var(--amber);
+  transform: scale(1.06);
+  box-shadow: 0 4px 24px var(--amber-glow);
+}
+.calc-fab.active {
+  background: var(--amber);
+  color: var(--bg-solid);
+  border-color: var(--amber);
+  box-shadow: 0 4px 24px var(--amber-glow);
+}
+
+/* ── Calculator panel ───────────────────────────────────────────── */
+.calc-panel {
+  position: fixed;
+  bottom: 144px;
+  right: 20px;
+  z-index: 49;
+  width: 296px;
+  max-height: calc(100dvh - 190px);
+  overflow-y: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  background: var(--surface);
+  box-shadow:
+    0 24px 64px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(196,144,53,0.06) inset;
+  animation: fadeUp 0.2s ease both;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .calc-panel {
+    right: 10px;
+    left: 10px;
+    width: auto;
+    bottom: 126px;
+  }
+  .calc-fab {
+    right: 16px;
+    bottom: 74px;
+  }
+}
+
+/* ── Hamburger — mobile sidebar toggle ──────────────────────────── */
+.sidebar-hamburger {
+  display: none;
+}
+@media (max-width: 640px) {
+  .sidebar-hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 10;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--cream-2);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .sidebar-hamburger:hover {
+    color: var(--amber);
+    border-color: var(--amber);
+  }
+  .app-main {
+    position: relative;
+  }
+}

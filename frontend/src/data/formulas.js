@@ -1,0 +1,80 @@
+/**
+ * Formula reference library.
+ * latex   — rendered with KaTeX for display
+ * insert  — plain-text expression inserted into the math input (empty = display-only)
+ */
+export const FORMULA_CATEGORIES = [
+  {
+    id: 'algebra',
+    label: 'Algebra',
+    icon: 'f(x)',
+    items: [
+      { name: 'Quadratic Formula',      latex: 'x = \\dfrac{-b \\pm \\sqrt{b^2-4ac}}{2a}',                           insert: 'x = (-b ± sqrt(b^2 - 4*a*c)) / (2*a)' },
+      { name: 'Difference of Squares',  latex: 'a^2 - b^2 = (a+b)(a-b)',                                              insert: 'a^2 - b^2 = (a+b)*(a-b)' },
+      { name: 'Perfect Square (+)',     latex: '(a+b)^2 = a^2 + 2ab + b^2',                                           insert: '(a+b)^2 = a^2 + 2*a*b + b^2' },
+      { name: 'Perfect Square (−)',     latex: '(a-b)^2 = a^2 - 2ab + b^2',                                           insert: '(a-b)^2 = a^2 - 2*a*b + b^2' },
+      { name: 'Sum of Cubes',           latex: 'a^3 + b^3 = (a+b)(a^2-ab+b^2)',                                       insert: 'a^3 + b^3 = (a+b)*(a^2 - a*b + b^2)' },
+      { name: 'Logarithm Product',      latex: '\\log(ab) = \\log a + \\log b',                                       insert: 'log(a*b) = log(a) + log(b)' },
+      { name: 'Logarithm Quotient',     latex: '\\log\\dfrac{a}{b} = \\log a - \\log b',                             insert: 'log(a/b) = log(a) - log(b)' },
+      { name: 'Change of Base',         latex: '\\log_b a = \\dfrac{\\ln a}{\\ln b}',                                 insert: 'log(a) / log(b)' },
+    ],
+  },
+  {
+    id: 'calculus',
+    label: 'Calculus',
+    icon: '∫',
+    items: [
+      { name: 'Power Rule (diff)',       latex: '\\dfrac{d}{dx}\\,x^n = nx^{n-1}',                                    insert: 'd/dx(x^n)' },
+      { name: 'Power Rule (int)',        latex: '\\displaystyle\\int x^n\\,dx = \\dfrac{x^{n+1}}{n+1} + C',           insert: 'integrate x^n dx' },
+      { name: 'Chain Rule',             latex: '\\dfrac{d}{dx}[f(g(x))] = f\'(g(x))\\cdot g\'(x)',                   insert: '' },
+      { name: 'Product Rule',           latex: '(uv)\' = u\'v + uv\'',                                               insert: '' },
+      { name: 'Quotient Rule',          latex: '\\left(\\dfrac{u}{v}\\right)\' = \\dfrac{u\'v - uv\'}{v^2}',         insert: '' },
+      { name: 'Integration by Parts',   latex: '\\displaystyle\\int u\\,dv = uv - \\int v\\,du',                     insert: '' },
+      { name: 'Fundamental Theorem',    latex: '\\displaystyle\\int_a^b f(x)\\,dx = F(b)-F(a)',                      insert: '' },
+      { name: 'L\'Hôpital\'s Rule',    latex: '\\lim_{x\\to c}\\dfrac{f(x)}{g(x)}=\\lim_{x\\to c}\\dfrac{f\'(x)}{g\'(x)}', insert: '' },
+    ],
+  },
+  {
+    id: 'trigonometry',
+    label: 'Trigonometry',
+    icon: 'sin',
+    items: [
+      { name: 'Pythagorean Identity',   latex: '\\sin^2\\theta + \\cos^2\\theta = 1',                                 insert: 'sin(x)^2 + cos(x)^2 = 1' },
+      { name: '1 + tan² = sec²',        latex: '1 + \\tan^2\\theta = \\sec^2\\theta',                                 insert: '1 + tan(x)^2 = sec(x)^2' },
+      { name: 'Double Angle (sin)',      latex: '\\sin 2\\theta = 2\\sin\\theta\\cos\\theta',                          insert: 'sin(2*x) = 2*sin(x)*cos(x)' },
+      { name: 'Double Angle (cos)',      latex: '\\cos 2\\theta = \\cos^2\\theta - \\sin^2\\theta',                   insert: 'cos(2*x) = cos(x)^2 - sin(x)^2' },
+      { name: 'Sum Formula (sin)',       latex: '\\sin(a\\pm b)=\\sin a\\cos b\\pm\\cos a\\sin b',                    insert: '' },
+      { name: 'Sum Formula (cos)',       latex: '\\cos(a\\pm b)=\\cos a\\cos b\\mp\\sin a\\sin b',                    insert: '' },
+      { name: 'Law of Sines',           latex: '\\dfrac{a}{\\sin A}=\\dfrac{b}{\\sin B}=\\dfrac{c}{\\sin C}',        insert: '' },
+      { name: 'Law of Cosines',         latex: 'c^2 = a^2+b^2-2ab\\cos C',                                           insert: 'c^2 = a^2 + b^2 - 2*a*b*cos(C)' },
+    ],
+  },
+  {
+    id: 'geometry',
+    label: 'Geometry',
+    icon: '△',
+    items: [
+      { name: 'Pythagorean Theorem',    latex: 'a^2 + b^2 = c^2',                                                    insert: 'a^2 + b^2 = c^2' },
+      { name: 'Area of Circle',         latex: 'A = \\pi r^2',                                                        insert: 'pi * r^2' },
+      { name: 'Circumference',          latex: 'C = 2\\pi r',                                                         insert: '2 * pi * r' },
+      { name: 'Area of Triangle',       latex: 'A = \\tfrac{1}{2}bh',                                                 insert: '(1/2) * b * h' },
+      { name: 'Area of Triangle (trig)',latex: 'A = \\tfrac{1}{2}ab\\sin C',                                          insert: '(1/2)*a*b*sin(C)' },
+      { name: 'Sphere Volume',          latex: 'V = \\tfrac{4}{3}\\pi r^3',                                           insert: '(4/3)*pi*r^3' },
+      { name: 'Sphere Surface Area',    latex: 'A = 4\\pi r^2',                                                       insert: '4*pi*r^2' },
+      { name: 'Cylinder Volume',        latex: 'V = \\pi r^2 h',                                                      insert: 'pi*r^2*h' },
+    ],
+  },
+  {
+    id: 'statistics',
+    label: 'Statistics',
+    icon: 'σ',
+    items: [
+      { name: 'Mean',                   latex: '\\bar{x} = \\dfrac{1}{n}\\displaystyle\\sum_{i=1}^{n} x_i',          insert: '' },
+      { name: 'Variance',               latex: '\\sigma^2 = \\dfrac{\\sum(x_i-\\bar{x})^2}{n}',                      insert: '' },
+      { name: 'Standard Deviation',     latex: '\\sigma = \\sqrt{\\dfrac{\\sum(x_i-\\bar{x})^2}{n}}',                insert: '' },
+      { name: 'Combinations',           latex: '\\binom{n}{k} = \\dfrac{n!}{k!(n-k)!}',                              insert: '' },
+      { name: 'Permutations',           latex: 'P(n,k) = \\dfrac{n!}{(n-k)!}',                                       insert: '' },
+      { name: 'Bayes\' Theorem',        latex: 'P(A|B) = \\dfrac{P(B|A)\\,P(A)}{P(B)}',                             insert: '' },
+    ],
+  },
+]
