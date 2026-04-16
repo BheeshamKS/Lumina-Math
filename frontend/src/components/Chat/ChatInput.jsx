@@ -6,7 +6,7 @@
  * the rest of this component and all parent components stay unchanged.
  */
 import React, { useRef, useEffect, useCallback, useState } from 'react'
-import { Send, RotateCcw } from 'lucide-react'
+import { Send, RotateCcw, Keyboard } from 'lucide-react'
 
 // ── LaTeX → backend-friendly text ────────────────────────────────────────────
 // MathLive produces LaTeX. The backend's _preprocess_latex handles most of it,
@@ -24,6 +24,7 @@ function toBackendText(latex) {
 
 export function ChatInput({ onSend, loading, onClear, messages, pushValue, onClearPush }) {
   const mfRef    = useRef(null)   // <math-field> DOM element
+  const barRef   = useRef(null)   // .math-input-bar — keyboard container anchor
   const submitRef = useRef(null)  // always holds the latest submit() so keydown is fresh
   const [hasContent, setHasContent] = useState(false)
 
@@ -38,6 +39,11 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     mf.style.setProperty('--caret-color', 'var(--amber)')
     mf.style.setProperty('--selection-background-color', 'rgba(196,144,53,0.25)')
     mf.style.setProperty('--_variant', 'outlined')
+    // Issue 1: force dark background directly — MathLive may apply a light
+    // default via its own shadow stylesheet that overrides ::part(container)
+    mf.style.background = 'transparent'
+    mf.style.setProperty('--_background-color', '#252119')   // card colour
+    mf.style.setProperty('--_field-background', 'transparent')
     mf.menuItems = []                                      // suppress built-in menu
 
     // ── Inject keyboard theme into document.head ──────────────────────────
@@ -109,6 +115,18 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     // curated set that adds calculus/trig and matrix tabs.
     const vk = window.mathVirtualKeyboard
     if (vk) {
+      // ── Reset container to body — required after HMR or if previously overridden ──
+      // The singleton persists across Vite hot-reloads. If a previous session set
+      // vk.container to something other than body, the keyboard renders there and
+      // body > .ML__keyboard { position: fixed } never applies — making it invisible.
+      vk.container = document.body
+      // If the keyboard panel was already built and ended up in the wrong container,
+      // move it back to body so it renders at the correct fixed position.
+      const existingKb = document.querySelector('.ML__keyboard')
+      if (existingKb && existingKb.parentElement !== document.body) {
+        document.body.appendChild(existingKb)
+      }
+
       vk.layouts = [
         'numeric',
         'symbols',
@@ -184,6 +202,22 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
       ]
     }
 
+    // ── Hide MathLive's built-in keyboard toggle + internal separator ──
+    // We render our own toggle button outside the field, so suppress all
+    // internal chrome inside the shadow DOM.
+    if (mf.shadowRoot) {
+      const shadowStyle = document.createElement('style')
+      shadowStyle.textContent = `
+        .ML__virtual-keyboard-toggle { display: none !important; }
+        .ML__menu-toggle              { display: none !important; }
+        [part="virtual-keyboard-toggle"] { display: none !important; }
+        [part="menu-toggle"]             { display: none !important; }
+        .ML__fieldcontainer { border: none !important; }
+        .ML__fieldcontainer__field { width: 100% !important; }
+      `
+      mf.shadowRoot.appendChild(shadowStyle)
+    }
+
     // ── Virtual keyboard: none on desktop, native on mobile ──
     const isMobile = window.matchMedia('(max-width: 640px)').matches
     mf.mathVirtualKeyboardPolicy = isMobile ? 'onfocus' : 'manual'
@@ -211,6 +245,21 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     const mf = mfRef.current
     if (mf) mf.readOnly = loading
   }, [loading])
+
+  // ── Close keyboard on click outside ─────────────────────────────────────
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      const vk = window.mathVirtualKeyboard
+      if (!vk?.visible) return
+      // Allow clicks inside the input bar or the keyboard panel itself
+      if (barRef.current?.contains(e.target)) return
+      const kbEl = document.querySelector('.ML__keyboard')
+      if (kbEl?.contains(e.target)) return
+      vk.hide()
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, []) // barRef is stable, no deps needed
 
   // ── Accept formula inserts from the sidebar ───────────────────────────────
   useEffect(() => {
@@ -241,12 +290,33 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
   // Keep submitRef current so the keydown closure always calls the latest version
   useEffect(() => { submitRef.current = submit }, [submit])
 
+  const toggleKeyboard = () => {
+    const vk = window.mathVirtualKeyboard
+    if (!vk) return
+    if (vk.visible) {
+      vk.hide()
+    } else {
+      mfRef.current?.focus()  // give MathLive an active field before showing
+      vk.show()
+    }
+  }
+
   const canSend = !loading && hasContent
   const isEmpty = !messages?.length
 
   return (
-    <div className="math-input-bar">
+    <div className="math-input-bar" ref={barRef}>
       <div className="math-input-row">
+
+        {/* ── Keyboard toggle — flex sibling to the left of the input box ── */}
+        <button
+          className="math-keyboard-toggle"
+          onClick={toggleKeyboard}
+          title="Toggle keyboard"
+          type="button"
+        >
+          <Keyboard size={15} />
+        </button>
 
         {/* ── SWAP POINT: MathLive math-field ───────────────────────────────
             To revert to plain <textarea>, replace this wrapper+math-field
