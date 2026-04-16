@@ -38,11 +38,9 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     mf.style.setProperty('--keyboard-zindex', '9999')
     mf.style.setProperty('--caret-color', 'var(--amber)')
     mf.style.setProperty('--selection-background-color', 'rgba(196,144,53,0.25)')
-    mf.style.setProperty('--_variant', 'outlined')
-    // Issue 1: force dark background directly — MathLive may apply a light
-    // default via its own shadow stylesheet that overrides ::part(container)
+    
+    // Force transparent background directly
     mf.style.background = 'transparent'
-    mf.style.setProperty('--_background-color', '#252119')   // card colour
     mf.style.setProperty('--_field-background', 'transparent')
     mf.menuItems = []                                      // suppress built-in menu
 
@@ -213,7 +211,8 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
         [part="virtual-keyboard-toggle"] { display: none !important; }
         [part="menu-toggle"]             { display: none !important; }
         .ML__fieldcontainer { border: none !important; }
-        .ML__fieldcontainer__field { width: 100% !important; }
+        .ML__fieldcontainer__field { width: 100% !important; white-space: pre-wrap !important; }
+        .ML__content, .ML__mathlive { white-space: pre-wrap !important; overflow-wrap: break-word !important; }
       `
       mf.shadowRoot.appendChild(shadowStyle)
     }

@@ -447,7 +447,7 @@
   --caret-color: var(--amber);
   --selection-background-color: rgba(196,144,53,0.25);
   --keyboard-zindex: 9999;
-  color: var(--cream);
+  color: #ffffff;
   font-size: 1rem;
   background: transparent;
 }
