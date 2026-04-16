@@ -3,7 +3,7 @@
  * All API calls inject the JWT via the Authorization header set in api.js.
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import {
   fetchSessions,
   createSession,
@@ -16,6 +16,9 @@ export function useSessions(token) {
   const [sessions, setSessions]       = useState([])
   const [activeSession, setActive]    = useState(null)
   const [loadingSessions, setLoading] = useState(false)
+
+  const saveInProgress  = useRef(false)
+  const lastSavedMsgId  = useRef(null)
 
   const loadSessions = useCallback(async () => {
     if (!token) return
@@ -64,22 +67,32 @@ export function useSessions(token) {
    * Auto-save a message pair (user + assistant) to the current session.
    * If no active session exists, one is created automatically.
    * solutionData is optional — only passed for assistant solution messages.
+   * msgId is used as a dedup key so the same message is never saved twice.
    */
-  const autoSave = useCallback(async (userText, assistantContent, solutionData) => {
+  const autoSave = useCallback(async (userText, assistantContent, solutionData, msgId) => {
     if (!token) return
+    if (saveInProgress.current) return
+    if (msgId && lastSavedMsgId.current === msgId) return  // already saved this message
 
-    let session = activeSession
-    if (!session) {
-      session = await startNewSession(userText.slice(0, 60))
+    saveInProgress.current = true
+    if (msgId) lastSavedMsgId.current = msgId
+
+    try {
+      let session = activeSession
+      if (!session) {
+        session = await startNewSession(userText.slice(0, 60))
+      }
+      if (!session) return
+
+      await saveMessage(token, session.id, { role: 'user', content: userText })
+      await saveMessage(token, session.id, {
+        role: 'assistant',
+        content: typeof assistantContent === 'string' ? assistantContent : JSON.stringify(assistantContent),
+        solution: solutionData || null,
+      })
+    } finally {
+      saveInProgress.current = false
     }
-    if (!session) return
-
-    await saveMessage(token, session.id, { role: 'user', content: userText })
-    await saveMessage(token, session.id, {
-      role: 'assistant',
-      content: typeof assistantContent === 'string' ? assistantContent : JSON.stringify(assistantContent),
-      solution: solutionData || null,
-    })
   }, [token, activeSession, startNewSession])
 
   return {

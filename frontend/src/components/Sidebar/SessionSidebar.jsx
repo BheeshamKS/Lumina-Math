@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { Plus, Trash2, MessageSquare, Loader2, LogOut, Sigma, BookOpen, ChevronDown, X } from 'lucide-react'
 import { BlockMath } from 'react-katex'
 import { useAuth } from '../../context/AuthContext'
-import { useSessions } from '../../hooks/useSessions'
 import { FORMULA_CATEGORIES } from '../../data/formulas'
 
 /* ── Formula accordion item ─────────────────────────────────────── */
@@ -40,26 +39,17 @@ function FormulaCategory({ category, onInsert }) {
 }
 
 /* ── Main sidebar ───────────────────────────────────────────────── */
-export function SessionSidebar({ onSelectSession, onNewSession, currentSessionId, onFormulaInsert, isOpen, onClose }) {
-  const { token, user, logout } = useAuth()
-  const { sessions, loadingSessions, loadSessions, startNewSession, removeSession, setActive } = useSessions(token)
+export function SessionSidebar({ sessions, loadingSessions, onSelectSession, onNewSession, onDeleteSession, currentSessionId, onFormulaInsert, isOpen, onClose }) {
+  const { user, logout } = useAuth()
   const [tab, setTab] = useState('sessions') // 'sessions' | 'formulas'
 
-  useEffect(() => { loadSessions() }, [loadSessions])
+  const handleNew = () => onNewSession?.()
 
-  const handleNew = async () => {
-    const session = await startNewSession()
-    if (session) { setActive(session); onNewSession?.(session) }
-  }
-
-  const handleSelect = (session) => {
-    setActive(session)
-    onSelectSession?.(session)
-  }
+  const handleSelect = (session) => onSelectSession?.(session)
 
   const handleDelete = async (e, id) => {
     e.stopPropagation()
-    await removeSession(id)
+    await onDeleteSession?.(id)
   }
 
   return (

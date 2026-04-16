@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════
-   Worksheet View — not a chatbot
+   Worksheet View — step-by-step math solver
    ══════════════════════════════════════════════════════════════════ */
 
 /* ── Shell ──────────────────────────────────────────────────────── */
@@ -141,14 +141,6 @@
 }
 .ws-problem-text p { margin: 0; }
 .ws-problem-text .katex { font-size: 1.1em; }
-.ws-problem-image { display: flex; flex-direction: column; gap: 6px; }
-.ws-problem-image img {
-  max-height: 180px; max-width: 100%;
-  object-fit: contain;
-  border-radius: var(--radius);
-  border: 1px solid var(--border-light);
-}
-.ws-problem-filename { font-size: 0.73rem; color: var(--cream-3); font-family: var(--font-mono); }
 
 /* ══ Solution document ══════════════════════════════════════════════ */
 .solution-doc {
@@ -176,7 +168,6 @@
   transition: color 0.15s, background 0.15s;
 }
 .accordion-trigger:hover { color: var(--amber); background: var(--amber-dim); }
-.accordion--tips .accordion-trigger:hover { color: var(--amber-bright); }
 
 .accordion-icon { font-size: 0.8em; color: var(--amber); opacity: 0.8; }
 .accordion-label { flex: 1; }
@@ -274,7 +265,16 @@
 }
 .step-description p, .step-description .message-renderer p { margin: 0; }
 .step-explanation {
-  font-size: 0.82rem; color: var(--cream-2); margin-bottom: 6px; line-height: 1.5;
+  font-size: 0.82rem;
+  color: var(--cream-2);
+  margin-bottom: 6px;
+  line-height: 1.6;
+  border-left: 2px solid var(--cobalt-dim);
+  padding-left: 9px;
+  font-style: italic;
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+  margin-top: 3px;
 }
 .step-explanation p { margin: 0; }
 .step-expression { overflow-x: auto; padding: 2px 0; }
@@ -295,7 +295,7 @@
   background: linear-gradient(to right, transparent, var(--amber), transparent);
   margin: 20px 0 0;
 }
-.sdoc-answer-rule:last-child { margin: 0 0 0; }
+.sdoc-answer-rule:last-child { margin: 0; }
 .sdoc-answer-inner {
   display: flex;
   flex-direction: column;
@@ -319,7 +319,6 @@
 .sdoc-answer-math {
   width: 100%; overflow-x: auto;
 }
-/* Big answer equations */
 .sdoc-answer .katex,
 .sdoc-answer .katex-display .katex { font-size: 2.2rem !important; }
 .sdoc-answer .katex-display { margin: 0; padding: 0; }
@@ -362,61 +361,6 @@
 }
 @media (max-width: 640px) { .ws-error { padding: 14px 18px; } }
 
-.ws-clarification {
-  padding: 20px 32px;
-  border-bottom: 1px solid var(--border);
-  display: flex; flex-direction: column; gap: 12px;
-  animation: fadeIn 0.22s ease both;
-}
-@media (max-width: 640px) { .ws-clarification { padding: 16px 18px; } }
-.ws-clarification-q {
-  font-size: 0.92rem; color: var(--cream);
-  font-weight: 500; line-height: 1.4;
-}
-.ws-clarification-opts { display: flex; flex-direction: column; gap: 7px; }
-.ws-clarification-btn {
-  display: flex; align-items: center; gap: 11px;
-  padding: 10px 13px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border-light);
-  background: var(--surface);
-  color: var(--cream); cursor: pointer; text-align: left;
-  font-size: 0.87rem; font-family: var(--font-sans);
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-}
-.ws-clarification-btn:hover {
-  border-color: var(--amber); background: var(--amber-dim);
-  box-shadow: 0 0 10px var(--amber-glow);
-}
-.ws-opt-badge {
-  width: 20px; height: 20px; border-radius: 50%;
-  border: 1px solid var(--amber); color: var(--amber);
-  font-family: var(--font-sans); font-size: 0.68rem; font-weight: 600;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.ws-clarification-btn code {
-  font-family: var(--font-mono); font-size: 0.86rem; color: var(--cream);
-}
-
-.ws-followup {
-  display: flex; gap: 12px; align-items: flex-start;
-  padding: 18px 32px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(61,104,180,0.04);
-  animation: fadeIn 0.2s ease both;
-}
-@media (max-width: 640px) { .ws-followup { padding: 14px 18px; } }
-.ws-followup-icon {
-  color: var(--cobalt-bright); margin-top: 2px; flex-shrink: 0;
-}
-.ws-followup-body {
-  flex: 1; min-width: 0;
-  font-size: 0.9rem; color: var(--cream); line-height: 1.65;
-}
-.ws-followup-body p { margin: 0 0 0.4em; }
-.ws-followup-body p:last-child { margin: 0; }
-
 .ws-text-response {
   padding: 16px 32px;
   border-bottom: 1px solid var(--border);
@@ -425,7 +369,7 @@
 }
 @media (max-width: 640px) { .ws-text-response { padding: 12px 18px; } }
 
-/* ══ MessageRenderer in worksheet ══════════════════════════════════ */
+/* ══ MessageRenderer ════════════════════════════════════════════════ */
 .message-renderer { font-family: var(--font-sans); line-height: 1.65; }
 .message-renderer .md-p,
 .message-renderer p { margin: 0 0 0.45em; }
@@ -451,74 +395,135 @@
 .message-renderer .katex { color: var(--cream); }
 .message-renderer .katex-display { overflow-x: auto; padding: 0.5em 0; margin: 0.15em 0; }
 
-/* Legacy compat */
-.math-renderer { display: inline; }
-.math-block-wrapper { display: block; overflow-x: auto; }
-.math-error   { color: var(--error);   font-family: var(--font-mono); font-size: 0.85em; }
 .math-fallback { color: var(--cream-2); font-family: var(--font-mono); font-size: 0.85em; }
 .spin { animation: spin 1s linear infinite; }
 
 /* ══ Math Input Bar ═════════════════════════════════════════════════ */
 .math-input-bar {
   flex-shrink: 0;
-  padding: 10px 16px 14px;
+  padding: 12px 16px 16px;
   background: var(--surface);
   border-top: 1px solid var(--border);
-  box-shadow: 0 -1px 0 var(--border-light);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Mode toggle pills */
-.math-input-mode {
-  display: flex; gap: 6px; align-items: center;
-}
-.mode-pill {
-  display: flex; align-items: center; gap: 5px;
-  padding: 4px 12px;
-  border-radius: 99px;
-  border: 1px solid var(--border-light);
-  background: transparent;
-  color: var(--cream-2);
-  font-family: var(--font-sans); font-size: 0.78rem; font-weight: 500;
-  cursor: pointer; letter-spacing: 0.02em;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
-}
-.mode-pill.active {
-  background: var(--amber); color: var(--bg-solid);
-  border-color: var(--amber); font-weight: 600;
-}
-.mode-pill:not(.active):hover {
-  border-color: var(--amber); color: var(--amber);
-  background: var(--amber-dim);
-}
-
-/* Image preview */
-.math-input-preview {
-  position: relative; display: inline-block; align-self: flex-start;
-}
-.math-input-preview img {
-  height: 56px; width: auto;
-  border-radius: var(--radius); border: 1px solid var(--border-light);
-  object-fit: contain;
-}
-.preview-remove {
-  position: absolute; top: -5px; right: -5px;
-  width: 17px; height: 17px; border-radius: 50%;
-  background: var(--error); border: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; color: #fff;
+  /* Frosted glass lift on the input bar */
+  box-shadow: 0 -1px 0 var(--border-light), 0 -8px 32px rgba(0,0,0,0.18);
 }
 
 /* Main input row */
 .math-input-row {
-  display: flex; align-items: flex-end; gap: 7px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
 }
+
+/* ── MathLive math-field wrapper ────────────────────────────────── */
+.math-field-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  min-height: 44px;
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.math-field-wrapper:focus-within {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-dim);
+}
+
+/* ── <math-field> element ───────────────────────────────────────── */
+.math-field-el {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  /* Pass theme values into MathLive's shadow DOM */
+  --hue: 38;
+  --caret-color: var(--amber);
+  --selection-background-color: rgba(196,144,53,0.25);
+  --keyboard-zindex: 9999;
+  color: var(--cream);
+  font-size: 1rem;
+  background: transparent;
+}
+
+/* Remove MathLive's default chrome — padding lives on the wrapper */
+.math-field-el::part(container) {
+  background: transparent;
+  border: none;
+  padding: 10px 14px;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+/* Suppress the virtual-keyboard toggle button on desktop */
+.math-field-el::part(virtual-keyboard-toggle) {
+  display: none;
+}
+/* Re-show it on mobile where the built-in keyboard is useful */
+@media (max-width: 640px) {
+  .math-field-el::part(virtual-keyboard-toggle) {
+    display: flex;
+  }
+  .math-field-wrapper {
+    max-height: 120px;
+  }
+}
+
+/* Legacy textarea class — kept so existing CSS references don't error */
+.math-input-field {
+  width: 100%;
+  min-height: 42px;
+  resize: none; border: none;
+  background: transparent;
+  color: var(--cream); padding: 10px 14px;
+  font-size: 0.92rem; font-family: var(--font-sans); line-height: 1.5;
+  outline: none; field-sizing: content;
+  box-sizing: border-box;
+}
+.math-input-field::placeholder { color: var(--cream-3); font-style: italic; }
+.math-input-field:disabled { opacity: 0.45; }
+
+/* ── Solve button ───────────────────────────────────────────────── */
+.math-input-send {
+  display: flex; align-items: center; gap: 7px;
+  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--cream-3);
+  font-family: var(--font-sans); font-size: 0.87rem; font-weight: 600;
+  cursor: not-allowed; flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.math-input-send.ready {
+  background: var(--amber);
+  color: var(--bg-solid);
+  border-color: var(--amber);
+  cursor: pointer;
+}
+.math-input-send.ready:hover {
+  background: var(--amber-bright);
+  box-shadow: 0 2px 18px var(--amber-glow);
+  transform: translateY(-1px);
+}
+.math-input-send.ready:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* ── Icon buttons (clear, etc.) ─────────────────────────────────── */
 .math-input-icon-btn {
   display: flex; align-items: center; justify-content: center;
-  padding: 8px;
-  border: 1px solid var(--border); border-radius: var(--radius);
-  background: transparent; color: var(--cream-3);
+  padding: 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--cream-3);
   cursor: pointer; flex-shrink: 0;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
@@ -526,219 +531,8 @@
   color: var(--cream); border-color: var(--border-light); background: var(--card);
 }
 .math-input-icon-btn:disabled { opacity: 0.35; cursor: default; }
-.math-input-icon-btn.danger:hover:not(:disabled) { color: var(--error); border-color: var(--error); }
-
-/* ── Unified input box (math segments + textarea together) ── */
-.math-input-unified {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  background: var(--card);
-  max-height: 300px;
-  overflow-y: auto;
-  transition: border-color 0.18s, box-shadow 0.18s;
-}
-.math-input-unified.focused {
-  border-color: var(--amber);
-  box-shadow: 0 0 0 3px var(--amber-dim);
-}
-
-/* Live rendered preview inside unified box */
-.math-live-preview {
-  padding: 10px 14px 6px;
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-}
-.math-live-preview .message-renderer {
-  font-size: 0.92rem;
-  line-height: 1.6;
-  color: var(--cream-2);
-}
-.math-live-preview .katex { font-size: 1em !important; color: var(--cream); }
-.math-live-preview .katex-display { margin: 0.2em 0; }
-
-/* Textarea inside unified box — no own border/bg */
-.math-input-field {
-  width: 100%;
-  min-height: 42px;
-  resize: none; border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--cream); padding: 10px 14px;
-  font-size: 0.9rem; font-family: var(--font-mono); line-height: 1.6;
-  outline: none; field-sizing: content;
-  box-sizing: border-box;
-  caret-color: var(--amber);
-}
-.math-input-field:focus { outline: none; box-shadow: none; }
-.math-input-field::placeholder { color: var(--cream-3); font-style: italic; }
-.math-input-field:disabled { opacity: 0.45; }
-
-.math-input-send {
-  display: flex; align-items: center; gap: 7px;
-  padding: 9px 16px;
-  border-radius: var(--radius-lg); border: 1px solid var(--border);
-  background: var(--card); color: var(--cream-3);
-  font-family: var(--font-sans); font-size: 0.85rem; font-weight: 600;
-  cursor: not-allowed; flex-shrink: 0;
-  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s;
-  letter-spacing: 0.03em;
-}
-.math-input-send.ready {
-  background: var(--amber); color: var(--bg-solid);
-  border-color: var(--amber); cursor: pointer;
-}
-.math-input-send.ready:hover {
-  background: var(--amber-bright);
-  box-shadow: 0 0 16px var(--amber-glow);
-  transform: translateY(-1px);
-}
-
-/* ── Active icon btn (keyboard/action menu open) ────────────────── */
-.math-input-icon-btn.active {
-  color: var(--amber);
-  border-color: var(--amber);
-  background: var(--amber-dim);
-}
-
-/* ── Action menu dropdown ────────────────────────────────────────── */
-.chat-action-menu {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  background: var(--surface);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  box-shadow: 0 -6px 24px rgba(0,0,0,0.35);
-  z-index: 20;
-  animation: fadeIn 0.12s ease both;
-  min-width: 160px;
-}
-.chat-action-item {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 8px 11px;
-  border: none;
-  background: transparent;
-  color: var(--cream-2);
-  cursor: pointer;
-  font-family: var(--font-sans);
-  font-size: 0.83rem;
-  border-radius: 4px;
-  transition: color 0.12s, background 0.12s;
-  white-space: nowrap;
-}
-.chat-action-item:hover { color: var(--cream); background: var(--card); }
-
-/* ── Math Keyboard ───────────────────────────────────────────────── */
-.math-keyboard {
-  background: var(--bg-solid);
-  border-top: 1px solid var(--border);
-  border-radius: var(--radius) var(--radius) 0 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: fadeIn 0.15s ease both;
-}
-
-.mk-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex-shrink: 0;
-}
-.mk-tabs::-webkit-scrollbar { display: none; }
-
-.mk-tab {
-  flex-shrink: 0;
-  padding: 7px 13px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--cream-2);
-  font-family: var(--font-sans);
-  font-size: 0.74rem;
-  font-weight: 500;
-  cursor: pointer;
-  letter-spacing: 0.02em;
-  transition: color 0.15s, border-color 0.15s;
-  white-space: nowrap;
-}
-.mk-tab:hover { color: var(--cream); }
-.mk-tab.active {
-  color: var(--amber);
-  border-bottom-color: var(--amber);
-  font-weight: 600;
-}
-
-.mk-keys {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  padding: 8px 11px;
-  overflow-y: auto;
-  max-height: 148px;
-}
-
-.mk-key {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-width: 50px;
-  padding: 6px 8px;
-  border-radius: 5px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--cream);
-  cursor: pointer;
-  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
-}
-.mk-key:hover {
-  border-color: var(--amber);
-  background: var(--amber-dim);
-  box-shadow: 0 0 8px var(--amber-glow);
-}
-.mk-key:active { transform: scale(0.96); }
-
-.mk-key-preview {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 22px;
-}
-.mk-key-preview .katex { font-size: 0.9rem !important; color: var(--cream); }
-.mk-key-preview .katex-display { margin: 0; }
-.mk-key-latex-text {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--amber);
-}
-.mk-key-matrix-label {
-  font-family: var(--font-sans);
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--cobalt-bright);
-  letter-spacing: 0.02em;
-}
-
-.mk-key-label {
-  font-family: var(--font-sans);
-  font-size: 0.56rem;
-  color: var(--cream-3);
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  text-align: center;
+.math-input-icon-btn.danger:hover:not(:disabled) {
+  color: var(--error); border-color: var(--error);
 }
 
 /* ── KaTeX global overrides ─────────────────────────────────────── */
@@ -750,4 +544,127 @@
   position: absolute; width: 1px; height: 1px;
   padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0,0,0,0); border: 0;
+}
+
+/* ══ MathLive math-field theming ════════════════════════════════════
+   CSS custom properties are forwarded into MathLive's shadow DOM.
+   Layout / border lives on .math-field-wrapper; theming lives here.
+   ══════════════════════════════════════════════════════════════════ */
+math-field {
+  --keyboard-background: #1e1b14;
+  --keyboard-toolbar-background: #161310;
+  --keyboard-toolbar-text: #A39278;
+  --keyboard-toolbar-text-active: #C49035;
+  --keyboard-toolbar-background-hover: rgba(196,144,53,0.10);
+  --keyboard-toolbar-background-selected: rgba(196,144,53,0.15);
+  --keycap-background: #252119;
+  --keycap-background-hover: #2d2920;
+  --keycap-background-active: rgba(196,144,53,0.20);
+  --keycap-border: #302c22;
+  --keycap-text: #EDE5CF;
+  --keycap-text-muted: #A39278;
+  --keycap-secondary-background: #1e1b14;
+  --keycap-secondary-text: #A39278;
+  --keycap-modifier-background: #2d2920;
+  --keycap-modifier-text: #C49035;
+  --keycap-accent-background: #C49035;
+  --keycap-accent-text: #161310;
+  --caret: #C49035;
+  --selection-background: rgba(196,144,53,0.25);
+  --text-font-family: 'JetBrains Mono', monospace;
+}
+
+/* Virtual keyboard panel */
+.ML__keyboard {
+  --keyboard-background: #161310 !important;
+  --keyboard-toolbar-background: #1e1b14 !important;
+  border-top: 1px solid #302c22 !important;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.5) !important;
+}
+
+/* Keycaps */
+.ML__keycap {
+  background: #252119 !important;
+  border: 1px solid #302c22 !important;
+  color: #EDE5CF !important;
+  border-radius: 5px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+}
+.ML__keycap:hover {
+  background: #2d2920 !important;
+  border-color: #3e382a !important;
+}
+.ML__keycap.is-pressed,
+.ML__keycap:active {
+  background: rgba(196,144,53,0.20) !important;
+  border-color: #C49035 !important;
+}
+
+/* Action keys (=, Enter, Backspace) */
+.ML__keycap--action {
+  background: #2d2920 !important;
+  color: #C49035 !important;
+}
+.ML__keycap--action:hover {
+  background: rgba(196,144,53,0.15) !important;
+}
+
+/* Toolbar tab buttons */
+.ML__toolbar-button {
+  color: #A39278 !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 0.78rem !important;
+  letter-spacing: 0.04em !important;
+}
+.ML__toolbar-button.is-selected,
+.ML__toolbar-button[aria-selected="true"] {
+  color: #C49035 !important;
+  border-bottom: 2px solid #C49035 !important;
+}
+
+/* Placeholder and font inside the field */
+.ML__latex {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+.ML__placeholder {
+  color: #5e5549 !important;
+  font-style: italic !important;
+  font-family: 'Cormorant Garamond', serif !important;
+}
+
+/* Suppress the menu toggle button */
+math-field::part(menu-toggle) {
+  display: none;
+}
+
+/* ══ Responsive overrides ════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .math-field-el::part(container) {
+    font-size: 0.88rem;
+    min-height: 40px;
+    padding: 9px 11px;
+  }
+
+  .math-input-bar {
+    padding: 8px 10px 12px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .math-input-row {
+    gap: 6px;
+  }
+
+  .math-input-send {
+    padding: 9px 13px;
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .math-input-send span {
+    display: none;
+  }
+  .math-input-send {
+    padding: 9px 12px;
+  }
 }

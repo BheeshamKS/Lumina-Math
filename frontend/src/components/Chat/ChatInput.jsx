@@ -1,250 +1,288 @@
-import React, {
-  useState, useRef, useEffect, useCallback,
-} from 'react'
-import {
-  Send, MessageSquare, RotateCcw, X, Plus, FunctionSquare, Image, Camera,
-} from 'lucide-react'
-import { MessageRenderer } from '../MathRenderer/MathRenderer'
-import { MathKeyboard } from './MathKeyboard'
+/**
+ * ChatInput — isolated math input component.
+ *
+ * Input layer: MathLive <math-field> web component.
+ * To revert to a plain <textarea>, swap only the SWAP POINT block below —
+ * the rest of this component and all parent components stay unchanged.
+ */
+import React, { useRef, useEffect, useCallback, useState } from 'react'
+import { Send, RotateCcw } from 'lucide-react'
 
-/* ══════════════════════════════════════════════════════════════════
-   insertAtCursor
-   Insert `snippet` at the textarea's current selection, then
-   position the cursor:
-     - inside the first `{}` if the snippet has one
-     - after the inserted text otherwise
-   ══════════════════════════════════════════════════════════════════ */
-function insertAtCursor(el, prev, snippet) {
-  const start = el.selectionStart ?? prev.length
-  const end   = el.selectionEnd   ?? prev.length
-  const insert = `$${snippet}$`
-  const next   = prev.slice(0, start) + insert + prev.slice(end)
-
-  // Where to place caret after insert
-  const braceIdx = insert.indexOf('{}')
-  const caret = braceIdx !== -1
-    ? start + braceIdx + 1           // inside the first {}
-    : start + insert.length          // after the closing $
-
-  return { next, caret }
+// ── LaTeX → backend-friendly text ────────────────────────────────────────────
+// MathLive produces LaTeX. The backend's _preprocess_latex handles most of it,
+// but \int gets stripped to nothing (it's not in any keyword list).
+// We fix the known gap here before sending.
+function toBackendText(latex) {
+  return latex
+    .replace(/\\int\s*/g, 'integrate ')        // \int → integrate
+    .replace(/\\lim(?:_?\{[^}]*\})?\s*/g, 'limit of ')  // \lim_{x→0} → limit of
+    .replace(/\\partial\s*/g, 'd')             // \partial → d
+    .replace(/\\[,;! ]\s*/g, ' ')              // spacing commands
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   ActionMenu
-   ══════════════════════════════════════════════════════════════════ */
-function ActionMenu({ onFile, onCamera, onClose }) {
-  const ref = useRef(null)
+export function ChatInput({ onSend, loading, onClear, messages, pushValue, onClearPush }) {
+  const mfRef    = useRef(null)   // <math-field> DOM element
+  const submitRef = useRef(null)  // always holds the latest submit() so keydown is fresh
+  const [hasContent, setHasContent] = useState(false)
+
+  // ── Wire MathLive once after element mounts ───────────────────────────────
   useEffect(() => {
-    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose() }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [onClose])
-  return (
-    <div className="chat-action-menu" ref={ref}>
-      <button className="chat-action-item" onClick={() => { onFile(); onClose() }}>
-        <Image size={14} /> Upload image
-      </button>
-      <button className="chat-action-item" onClick={() => { onCamera(); onClose() }}>
-        <Camera size={14} /> Take photo
-      </button>
-    </div>
-  )
-}
+    const mf = mfRef.current
+    if (!mf) return
 
-/* ══════════════════════════════════════════════════════════════════
-   ChatInput
-   ══════════════════════════════════════════════════════════════════ */
-export function ChatInput({
-  onSend, onFollowup, onImageUpload,
-  loading, lastSolution,
-  pushFromCalc, onClearCalcPush,
-  onClear, messages,
-}) {
-  const [text, setText]           = useState('')
-  const [mode, setMode]           = useState('solve')
-  const [imgPreview, setImg]      = useState(null)
-  const [pendingFile, setPending] = useState(null)
-  const [kbOpen, setKbOpen]       = useState(false)
-  const [menuOpen, setMenuOpen]   = useState(false)
-  const [inputFocused, setInputFocused] = useState(false)
+    // ── Dark-theme CSS custom properties on the math-field itself ──
+    mf.style.setProperty('--hue', '38')                   // amber-ish accent
+    mf.style.setProperty('--keyboard-zindex', '9999')
+    mf.style.setProperty('--caret-color', 'var(--amber)')
+    mf.style.setProperty('--selection-background-color', 'rgba(196,144,53,0.25)')
+    mf.style.setProperty('--_variant', 'outlined')
+    mf.menuItems = []                                      // suppress built-in menu
 
-  const fileRef     = useRef(null)
-  const cameraRef   = useRef(null)
-  const textareaRef = useRef(null)
-
-  /* ── Auto-expand textarea (container handles max-height) ── */
-  useEffect(() => {
-    const el = textareaRef.current; if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
-  }, [text])
-
-  /* ── Reset mode when solution clears ── */
-  useEffect(() => { if (!lastSolution) setMode('solve') }, [lastSolution])
-
-  /* ── Push from sidebar formula or calculator result ── */
-  useEffect(() => {
-    if (!pushFromCalc) return
-    // Strip outer $/$$ if already wrapped, then re-wrap consistently
-    const raw = pushFromCalc.replace(/^\$\$?([\s\S]*?)\$?\$$/, '$1').trim()
-    if (!raw) { onClearCalcPush?.(); return }
-    const snippet = `$${raw}$ `
-    setText(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + snippet)
-    onClearCalcPush?.()
-  }, [pushFromCalc]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  /* ── File handling ── */
-  const handleFile = useCallback((file) => {
-    if (!file || !file.type.startsWith('image/')) return
-    setPending(file); setImg(URL.createObjectURL(file))
-  }, [])
-
-  /* ── Keyboard insert — goes directly into textarea at cursor ── */
-  const handleKeyInsert = useCallback((snippet) => {
-    const el = textareaRef.current
-    if (!el) return
-    const { next, caret } = insertAtCursor(el, text, snippet)
-    setText(next)
-    requestAnimationFrame(() => {
-      el.focus()
-      el.setSelectionRange(caret, caret)
-    })
-  }, [text])
-
-  /* ── Submit ── */
-  const submit = useCallback(() => {
-    if (loading) return
-    if (pendingFile) {
-      onImageUpload(pendingFile)
-      setPending(null); setImg(null); setText('')
-      return
+    // ── Inject keyboard theme into document.head ──────────────────────────
+    // The virtual keyboard is appended directly to <body> — it is NOT inside
+    // the React root, so CSS vars set on <math-field> never reach it.
+    // Injecting a <style> into <head> scoped to .ML__keyboard fixes this.
+    if (!document.getElementById('lumina-kb-theme')) {
+      const styleEl = document.createElement('style')
+      styleEl.id = 'lumina-kb-theme'
+      styleEl.textContent = `
+        .ML__keyboard {
+          --keyboard-background: #161310;
+          --keyboard-border: #302c22;
+          --keyboard-toolbar-background: #1e1b14;
+          --keyboard-toolbar-text: #A39278;
+          --keyboard-toolbar-text-active: #C49035;
+          --keyboard-toolbar-background-hover: rgba(196,144,53,0.10);
+          --keyboard-toolbar-background-selected: rgba(196,144,53,0.15);
+          --keyboard-accent-color: #C49035;
+          --keycap-background: #252119;
+          --keycap-background-hover: #2d2920;
+          --keycap-background-active: rgba(196,144,53,0.22);
+          --keycap-background-pressed: rgba(196,144,53,0.28);
+          --keycap-border: #302c22;
+          --keycap-border-bottom: #3e382a;
+          --keycap-text: #EDE5CF;
+          --keycap-text-active: #161310;
+          --keycap-text-hover: #EDE5CF;
+          --keycap-shift-text: #C49035;
+          --keycap-secondary-background: #1e1b14;
+          --keycap-secondary-background-hover: #252119;
+          --keycap-secondary-text: #A39278;
+          --keycap-secondary-border: #302c22;
+          --keycap-secondary-border-bottom: #3e382a;
+          --keycap-primary-background: #C49035;
+          --keycap-primary-background-hover: #DBA840;
+          --keycap-primary-text: #161310;
+          --variant-panel-background: #1e1b14;
+          --variant-keycap-text: #EDE5CF;
+          --variant-keycap-text-active: #161310;
+          --variant-keycap-background-active: #C49035;
+          --box-placeholder-color: #C49035;
+          border-top: 1px solid #302c22 !important;
+          box-shadow: 0 -6px 28px rgba(0,0,0,0.55) !important;
+        }
+        /* Toolbar tab strip */
+        .ML__keyboard .MLK__toolbar .tab {
+          color: #A39278 !important;
+          font-family: 'DM Sans', sans-serif !important;
+          font-size: 0.76rem !important;
+          letter-spacing: 0.05em !important;
+        }
+        .ML__keyboard .MLK__toolbar .tab.is-selected {
+          color: #C49035 !important;
+          border-bottom: 2px solid #C49035 !important;
+        }
+        /* Horizontal rule between toolbar and keys */
+        .ML__keyboard .MLK__toolbar {
+          background: #1e1b14 !important;
+          border-bottom: 1px solid #302c22 !important;
+        }
+      `
+      document.head.appendChild(styleEl)
     }
-    const combined = text.trim()
-    if (!combined) return
-    if (mode === 'ask' && lastSolution) onFollowup(combined)
-    else onSend(combined)
-    setText('')
-  }, [loading, pendingFile, text, mode, lastSolution, onSend, onFollowup, onImageUpload])
 
-  const onKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() }
-  }
+    // ── Keyboard layouts: numeric + symbols + functions + greek + matrices ──
+    // window.mathVirtualKeyboard is the singleton controller; 'default' expands
+    // to ['numeric','symbols','alphabetic','greek'] — we replace it with a
+    // curated set that adds calculus/trig and matrix tabs.
+    const vk = window.mathVirtualKeyboard
+    if (vk) {
+      vk.layouts = [
+        'numeric',
+        'symbols',
+        {
+          label: 'f(x)',
+          tooltip: 'Functions & Calculus',
+          rows: [
+            [
+              { label: 'sin',    latex: '\\sin(#?)' },
+              { label: 'cos',    latex: '\\cos(#?)' },
+              { label: 'tan',    latex: '\\tan(#?)' },
+              { label: 'cot',    latex: '\\cot(#?)' },
+              { label: 'sec',    latex: '\\sec(#?)' },
+              { label: 'csc',    latex: '\\csc(#?)' },
+            ],
+            [
+              { label: 'arcsin', latex: '\\arcsin(#?)', class: 'small' },
+              { label: 'arccos', latex: '\\arccos(#?)', class: 'small' },
+              { label: 'arctan', latex: '\\arctan(#?)', class: 'small' },
+              { label: 'ln',     latex: '\\ln(#?)' },
+              { label: 'log',    latex: '\\log(#?)' },
+              { label: 'log₁₀',  latex: '\\log_{10}(#?)', class: 'small' },
+            ],
+            [
+              { label: '∫',      latex: '\\int_{#?}^{#?}#?\\,d#?' },
+              { label: '∂/∂x',   latex: '\\frac{\\partial #?}{\\partial #?}', class: 'small' },
+              { label: 'd/dx',   latex: '\\frac{d}{dx}#?', class: 'small' },
+              { label: 'lim',    latex: '\\lim_{#?\\to #?}#?' },
+              { label: 'Σ',      latex: '\\sum_{#?}^{#?}#?' },
+              { label: 'Π',      latex: '\\prod_{#?}^{#?}#?' },
+            ],
+            [
+              { label: 'eˣ',     latex: 'e^{#?}' },
+              { label: '√',      latex: '\\sqrt{#?}' },
+              { label: 'ⁿ√',     latex: '\\sqrt[#?]{#?}' },
+              { label: '|x|',    latex: '\\left|#?\\right|' },
+              { label: '⌊x⌋',    latex: '\\lfloor #?\\rfloor' },
+              { label: '⌈x⌉',    latex: '\\lceil #?\\rceil' },
+            ],
+          ],
+        },
+        'greek',
+        {
+          label: '[ ]',
+          tooltip: 'Matrices & Vectors',
+          rows: [
+            [
+              { label: '2×2',    latex: '\\begin{pmatrix}#? & #?\\\\#? & #?\\end{pmatrix}', class: 'small' },
+              { label: '3×3',    latex: '\\begin{pmatrix}#?&#?&#?\\\\#?&#?&#?\\\\#?&#?&#?\\end{pmatrix}', class: 'small' },
+              { label: '2×1',    latex: '\\begin{pmatrix}#?\\\\#?\\end{pmatrix}', class: 'small' },
+              { label: '1×2',    latex: '\\begin{pmatrix}#?&#?\\end{pmatrix}', class: 'small' },
+              { label: '[2×2]',  latex: '\\begin{bmatrix}#?&#?\\\\#?&#?\\end{bmatrix}', class: 'small' },
+              { label: '|2×2|',  latex: '\\begin{vmatrix}#?&#?\\\\#?&#?\\end{vmatrix}', class: 'small' },
+            ],
+            [
+              { label: 'Aᵀ',    latex: '#?^{\\intercal}' },
+              { label: 'A⁻¹',   latex: '#?^{-1}' },
+              { label: 'A⁻ᵀ',   latex: '#?^{-\\intercal}', class: 'small' },
+              { label: 'det',    latex: '\\det(#?)' },
+              { label: 'tr',     latex: '\\operatorname{tr}(#?)' },
+              { label: '‖A‖',    latex: '\\left\\|#?\\right\\|' },
+            ],
+            [
+              { label: '·',      latex: '\\cdot' },
+              { label: '×',      latex: '\\times' },
+              { label: '⊗',      latex: '\\otimes' },
+              { label: '⊕',      latex: '\\oplus' },
+              { label: '→',      latex: '\\vec{#?}' },
+              { label: 'â',      latex: '\\hat{#?}' },
+            ],
+          ],
+        },
+      ]
+    }
 
-  const canSend = !loading && (pendingFile || text.trim())
-  const isEmpty = messages?.length === 0
-  const hasMath = text.includes('$') || text.includes('\\')
+    // ── Virtual keyboard: none on desktop, native on mobile ──
+    const isMobile = window.matchMedia('(max-width: 640px)').matches
+    mf.mathVirtualKeyboardPolicy = isMobile ? 'onfocus' : 'manual'
+
+    const handleInput = () => setHasContent(!!mf.getValue('latex').trim())
+
+    const handleKeydown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        submitRef.current?.()
+      }
+    }
+
+    mf.addEventListener('input', handleInput)
+    mf.addEventListener('keydown', handleKeydown)
+    return () => {
+      mf.removeEventListener('input', handleInput)
+      mf.removeEventListener('keydown', handleKeydown)
+    }
+  }, []) // runs once — submitRef.current keeps submit fresh
+
+  // ── Disable field while loading ───────────────────────────────────────────
+  useEffect(() => {
+    const mf = mfRef.current
+    if (mf) mf.readOnly = loading
+  }, [loading])
+
+  // ── Accept formula inserts from the sidebar ───────────────────────────────
+  useEffect(() => {
+    if (!pushValue) return
+    const mf = mfRef.current
+    if (mf) {
+      mf.executeCommand(['insert', pushValue])
+      setHasContent(!!mf.getValue('latex').trim())
+      mf.focus()
+    }
+    onClearPush?.()
+  }, [pushValue]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Submit ────────────────────────────────────────────────────────────────
+  const submit = useCallback(() => {
+    const mf = mfRef.current
+    if (!mf || loading) return
+    const latex = mf.getValue('latex').trim()
+    if (!latex) return
+    const text = toBackendText(latex)
+    if (!text) return
+    onSend(text)
+    mf.setValue('')
+    setHasContent(false)
+    mf.focus()
+  }, [loading, onSend])
+
+  // Keep submitRef current so the keydown closure always calls the latest version
+  useEffect(() => { submitRef.current = submit }, [submit])
+
+  const canSend = !loading && hasContent
+  const isEmpty = !messages?.length
 
   return (
     <div className="math-input-bar">
-      {/* Mode toggle */}
-      {lastSolution && (
-        <div className="math-input-mode">
-          <button className={`mode-pill ${mode === 'solve' ? 'active' : ''}`} onClick={() => setMode('solve')}>
-            New Problem
-          </button>
-          <button className={`mode-pill ${mode === 'ask' ? 'active' : ''}`} onClick={() => setMode('ask')}>
-            <MessageSquare size={12} /> Ask Follow-up
-          </button>
-        </div>
-      )}
-
-      {/* Image preview */}
-      {imgPreview && (
-        <div className="math-input-preview">
-          <img src={imgPreview} alt="preview" />
-          <button className="preview-remove" onClick={() => { setImg(null); setPending(null) }}>
-            <X size={13} />
-          </button>
-        </div>
-      )}
-
-      {/* Virtual keyboard */}
-      {kbOpen && <MathKeyboard onInsert={handleKeyInsert} />}
-
-      {/* Hidden file inputs */}
-      <input ref={fileRef}   type="file" accept="image/*"                className="sr-only"
-        onChange={e => handleFile(e.target.files?.[0])} />
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only"
-        onChange={e => handleFile(e.target.files?.[0])} />
-
-      {/* Input row */}
       <div className="math-input-row">
-        {/* Attach menu */}
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <button
-            className={`math-input-icon-btn ${menuOpen ? 'active' : ''}`}
-            title="Attach"
-            onClick={() => setMenuOpen(v => !v)}
-            disabled={loading}
-          ><Plus size={16} /></button>
-          {menuOpen && (
-            <ActionMenu
-              onFile={() => fileRef.current?.click()}
-              onCamera={() => cameraRef.current?.click()}
-              onClose={() => setMenuOpen(false)}
-            />
-          )}
-        </div>
 
-        {/* Math keyboard toggle */}
-        <button
-          className={`math-input-icon-btn ${kbOpen ? 'active' : ''}`}
-          title={kbOpen ? 'Close keyboard' : 'Math keyboard'}
-          onClick={() => setKbOpen(v => !v)}
-          disabled={loading}
-        ><FunctionSquare size={16} /></button>
-
-        {/* ── Unified input box ── */}
-        <div
-          className={`math-input-unified${inputFocused ? ' focused' : ''}`}
-          onFocus={() => setInputFocused(true)}
-          onBlur={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget)) setInputFocused(false)
-          }}
-        >
-          {/* Live rendered preview — shows when text contains math */}
-          {hasMath && text.trim() && (
-            <div className="math-live-preview">
-              <MessageRenderer>{text}</MessageRenderer>
-            </div>
-          )}
-
-          {/* The single editable textarea */}
-          <textarea
-            ref={textareaRef}
-            className="math-input-field"
-            placeholder={
-              mode === 'ask'
-                ? 'Ask a follow-up question…'
-                : 'Type a problem — use ⌨ to insert math symbols, or type $LaTeX$ directly…'
-            }
-            value={text}
-            rows={1}
-            disabled={loading}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={onKeyDown}
+        {/* ── SWAP POINT: MathLive math-field ───────────────────────────────
+            To revert to plain <textarea>, replace this wrapper+math-field
+            block with the textarea from the previous commit. onSend() API
+            is unchanged: it always receives a plain text string.
+        ─────────────────────────────────────────────────────────────────── */}
+        <div className="math-field-wrapper">
+          <math-field
+            ref={mfRef}
+            className="math-field-el"
+            placeholder="Type an equation — e.g. 2x + 4 = 8  or  integrate x^2 dx"
+            aria-label="Math input"
           />
         </div>
 
-        {/* Send */}
+        {/* ── Solve button ── */}
         <button
-          className={`math-input-send ${canSend ? 'ready' : ''}`}
+          className={`math-input-send${canSend ? ' ready' : ''}`}
           onClick={submit}
           disabled={!canSend}
-          title={mode === 'ask' ? 'Ask' : 'Solve'}
+          title="Solve"
         >
-          {mode === 'ask' ? <MessageSquare size={16} /> : <Send size={16} />}
-          <span>{mode === 'ask' ? 'Ask' : 'Solve'}</span>
+          <Send size={16} />
+          <span>Solve</span>
         </button>
 
-        {/* Clear worksheet */}
+        {/* ── Clear worksheet ── */}
         {!isEmpty && (
           <button
             className="math-input-icon-btn danger"
             onClick={onClear}
             title="Clear worksheet"
             disabled={loading}
-          ><RotateCcw size={16} /></button>
+          >
+            <RotateCcw size={16} />
+          </button>
         )}
       </div>
     </div>

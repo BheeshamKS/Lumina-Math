@@ -41,6 +41,9 @@ api.interceptors.response.use(
 )
 
 function authHeaders(token) {
+  if (!token || typeof token !== 'string' || token.split('.').length !== 3) {
+    console.warn('[Lumina] authHeaders called with invalid token:', typeof token, String(token).slice(0, 20))
+  }
   return { headers: { Authorization: `Bearer ${token}` } }
 }
 
@@ -103,23 +106,6 @@ export async function saveMessage(token, sessionId, payload) {
 
 export async function sendChat(message) {
   const { data } = await api.post('/chat', { message })
-  return data
-}
-
-export async function sendFollowup(message, solutionContext) {
-  const { data } = await api.post('/chat/followup', {
-    message,
-    solution_context: solutionContext,
-  })
-  return data
-}
-
-export async function extractImage(imageFile) {
-  const form = new FormData()
-  form.append('file', imageFile)
-  const { data } = await api.post('/extract-image', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
   return data
 }
 

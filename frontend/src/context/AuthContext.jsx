@@ -55,10 +55,17 @@ export function AuthProvider({ children }) {
 
     apiRefresh(stored)
       .then((data) => {
-        if (!cancelled) _setSession(data.access_token, data.refresh_token, { user_id: data.user_id, email: data.email })
+        if (cancelled) return
+        if (!data.access_token) {
+          console.warn('[Lumina] Refresh returned no access_token — clearing session')
+          _clearSession()
+          return
+        }
+        _setSession(data.access_token, data.refresh_token, { user_id: data.user_id, email: data.email })
       })
-      .catch(() => {
+      .catch((err) => {
         // Refresh token expired — clear and show login
+        console.warn('[Lumina] Session restore failed:', err?.response?.data?.detail || err.message)
         if (!cancelled) _clearSession()
       })
       .finally(() => { if (!cancelled) setRestored(true) })

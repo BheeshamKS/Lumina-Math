@@ -24,6 +24,21 @@ TRANSFORMATIONS = standard_transformations + (implicit_multiplication_applicatio
 
 # ── LaTeX → SymPy text pre-processor ─────────────────────────────────────────
 
+# ── Unicode math → ASCII pre-processor ───────────────────────────────────────
+# Applied BEFORE LaTeX substitutions so superscripts and special chars work
+# whether the user typed them directly or pasted from the example chips.
+_UNICODE_MATH_SUBS = [
+    ('\u00b2', '^2'),   # ²
+    ('\u00b3', '^3'),   # ³
+    ('\u2074', '^4'),   # ⁴
+    ('\u2075', '^5'),   # ⁵
+    ('\u2212', '-'),    # − (Unicode minus sign)
+    ('\u00d7', '*'),    # × (multiplication sign)
+    ('\u00f7', '/'),    # ÷
+    ('\u03c0', 'pi'),   # π
+    ('\u221e', 'oo'),   # ∞
+]
+
 _LATEX_SUBS = [
     # Fractions:  \frac{a}{b}  →  (a)/(b)
     (re.compile(r"\\frac\{([^}]+)\}\{([^}]+)\}"), r"((\1)/(\2))"),
@@ -67,14 +82,17 @@ _LATEX_SUBS = [
 def _preprocess_latex(text: str) -> str:
     """
     Convert LaTeX notation to SymPy-parseable algebra.
-    Applies an ordered sequence of regex substitutions.
+    Applies Unicode normalisation first, then an ordered sequence of regex substitutions.
     Returns the cleaned string.
     """
     s = text.strip()
-    # Strip $ / $$ delimiters that may come from calculator push or user paste
+    # Strip $ / $$ delimiters that may come from user paste
     s = re.sub(r"^\$\$(.+)\$\$$", r"\1", s, flags=re.DOTALL)
     s = re.sub(r"^\$([^$\n]+)\$$", r"\1", s)
     s = s.strip()
+    # Normalise Unicode math characters (², ³, −, etc.)
+    for uc, rep in _UNICODE_MATH_SUBS:
+        s = s.replace(uc, rep)
     for pattern, replacement in _LATEX_SUBS:
         s = pattern.sub(replacement, s)
     # Collapse any double spaces left behind

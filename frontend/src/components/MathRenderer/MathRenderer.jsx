@@ -41,9 +41,9 @@ export function MessageRenderer({ children, className = '' }) {
               </pre>
             )
           },
-          // Paragraphs — strip extra wrapper div nesting
+          // span instead of p — avoids <p> inside <p> when used inside StepRenderer
           p({ children: c }) {
-            return <p className="md-p">{c}</p>
+            return <span className="md-p">{c}</span>
           },
         }}
       >

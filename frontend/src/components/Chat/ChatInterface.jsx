@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { BlockMath } from 'react-katex'
 import { MessageRenderer, StepRenderer } from '../MathRenderer/MathRenderer'
-import { ChevronDown, AlertCircle, Lightbulb, MessageSquare } from 'lucide-react'
+import { ChevronDown, AlertCircle } from 'lucide-react'
 import { ChatInput } from './ChatInput'
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -12,28 +12,24 @@ function Accordion({ label, icon, children, defaultOpen = false, variant = 'defa
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div className={`accordion accordion--${variant}`}>
-      <button className="accordion-trigger" onClick={() => setOpen(v => !v)}>
+      <button className="accordion-trigger" onClick={() => setOpen((v) => !v)}>
         {icon && <span className="accordion-icon">{icon}</span>}
         <span className="accordion-label">{label}</span>
         <ChevronDown size={15} className={`accordion-chevron ${open ? 'open' : ''}`} />
       </button>
-      {open && (
-        <div className="accordion-body">
-          {children}
-        </div>
-      )}
+      {open && <div className="accordion-body">{children}</div>}
     </div>
   )
 }
 
 /* ── Loading skeleton ──────────────────────────────────────────── */
-function SolvingState({ label }) {
+function SolvingState() {
   return (
     <div className="ws-solving">
       <div className="ws-solving-dots">
         <span /><span /><span />
       </div>
-      <span className="ws-solving-label">{label || 'Working…'}</span>
+      <span className="ws-solving-label">Working…</span>
     </div>
   )
 }
@@ -48,38 +44,9 @@ function ErrorCard({ content }) {
   )
 }
 
-/* ── Clarification card ─────────────────────────────────────────── */
-function ClarificationCard({ data, onSelect }) {
-  return (
-    <div className="ws-clarification">
-      <p className="ws-clarification-q">{data.question}</p>
-      <div className="ws-clarification-opts">
-        {(data.options || []).map((opt, i) => (
-          <button key={i} className="ws-clarification-btn" onClick={() => onSelect(opt)}>
-            <span className="ws-opt-badge">{String.fromCharCode(65 + i)}</span>
-            <code>{opt}</code>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* ── Follow-up response ─────────────────────────────────────────── */
-function FollowupCard({ content }) {
-  return (
-    <div className="ws-followup">
-      <MessageSquare size={14} className="ws-followup-icon" />
-      <div className="ws-followup-body">
-        <MessageRenderer>{content}</MessageRenderer>
-      </div>
-    </div>
-  )
-}
-
 /* ── Full solution document ─────────────────────────────────────── */
 function SolutionDocument({ data }) {
-  const steps = data.steps || data.sympy?.steps || []
+  const steps = data.steps || []
 
   return (
     <div className="solution-doc">
@@ -124,7 +91,7 @@ function SolutionDocument({ data }) {
 
       {/* Tips — hidden by default */}
       {data.tips && (
-        <Accordion label="Common Mistakes" icon={<Lightbulb size={13} />} variant="tips">
+        <Accordion label="Common Mistakes" icon="⚠" variant="tips">
           <div className="sdoc-tips-body">
             <MessageRenderer>{data.tips}</MessageRenderer>
           </div>
@@ -135,32 +102,26 @@ function SolutionDocument({ data }) {
 }
 
 /* ── Problem header (user's input) ─────────────────────────────── */
-function ProblemHeader({ content, type, filename, src }) {
+function ProblemHeader({ content }) {
   return (
     <div className="ws-problem">
       <span className="ws-problem-badge">Problem</span>
-      {type === 'image' ? (
-        <div className="ws-problem-image">
-          <img src={src || content} alt={filename || 'uploaded math'} />
-          {filename && <span className="ws-problem-filename">{filename}</span>}
-        </div>
-      ) : (
-        <div className="ws-problem-text">
-          <MessageRenderer>{content}</MessageRenderer>
-        </div>
-      )}
+      <div className="ws-problem-text">
+        <MessageRenderer>{content}</MessageRenderer>
+      </div>
     </div>
   )
 }
 
 /* ── Welcome screen ─────────────────────────────────────────────── */
 const EXAMPLES = [
-  'x² - 5x + 6 = 0',
-  'd/dx(x³ + 2x² − 7)',
-  '∫ x² dx',
-  'factor x³ − 6x² + 11x − 6',
-  'limit of sin(x)/x as x → 0',
-  'simplify (x² − 4)/(x − 2)',
+  '2x + 4 = 8',
+  'x^2 - 5x + 6 = 0',
+  'd/dx(x^3 + 2x^2 - 7)',
+  'integrate x^2 dx',
+  'factor x^3 - 6x^2 + 11x - 6',
+  'limit of sin(x)/x as x -> 0',
+  'simplify (x^2 - 4)/(x - 2)',
 ]
 
 function WelcomeScreen({ onPrompt }) {
@@ -172,7 +133,7 @@ function WelcomeScreen({ onPrompt }) {
       </div>
       <h1 className="ws-welcome-title">Lumina <span>Math</span></h1>
       <p className="ws-welcome-sub">
-        Enter an equation, expression, or problem below — or upload an image of handwritten math.
+        Enter an equation or expression below and get a step-by-step solution.
       </p>
       <div className="ws-example-grid">
         {EXAMPLES.map((e) => (
@@ -186,11 +147,10 @@ function WelcomeScreen({ onPrompt }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   Main ChatInterface — now a "Worksheet View"
+   Main ChatInterface — Worksheet View
    ═══════════════════════════════════════════════════════════════════ */
 export function ChatInterface({
-  messages, loading, onSendMessage, onSendFollowup, onImageUpload,
-  onSelectClarification, onClearChat, lastSolution, pushFromCalc, onClearCalcPush,
+  messages, loading, onSendMessage, onClearChat, pushValue, onClearPush,
 }) {
   const bottomRef = useRef(null)
 
@@ -210,29 +170,11 @@ export function ChatInterface({
           <>
             {messages.map((msg) => {
               if (msg.role === 'user') {
-                return (
-                  <ProblemHeader
-                    key={msg.id}
-                    content={msg.content}
-                    type={msg.type}
-                    filename={msg.filename}
-                    src={msg.content}
-                  />
-                )
+                return <ProblemHeader key={msg.id} content={msg.content} />
               }
-              // Assistant messages
-              if (msg.type === 'loading') return <SolvingState key={msg.id} label={msg.content} />
+              if (msg.type === 'loading') return <SolvingState key={msg.id} />
               if (msg.type === 'solution') return <SolutionDocument key={msg.id} data={msg.data || {}} />
-              if (msg.type === 'clarification') return (
-                <ClarificationCard
-                  key={msg.id}
-                  data={msg.data || { question: msg.content, options: [] }}
-                  onSelect={onSelectClarification}
-                />
-              )
-              if (msg.type === 'followup') return <FollowupCard key={msg.id} content={msg.content} />
               if (msg.type === 'error') return <ErrorCard key={msg.id} content={msg.content} />
-              // Generic text (image extraction in-progress note, etc.)
               return (
                 <div key={msg.id} className="ws-text-response">
                   <MessageRenderer>{msg.content}</MessageRenderer>
@@ -244,17 +186,14 @@ export function ChatInterface({
         )}
       </div>
 
-      {/* ── Chat input with keyboard ── */}
+      {/* ── Input ── */}
       <ChatInput
         onSend={onSendMessage}
-        onFollowup={onSendFollowup}
-        onImageUpload={onImageUpload}
         loading={loading}
-        lastSolution={lastSolution}
-        pushFromCalc={pushFromCalc}
-        onClearCalcPush={onClearCalcPush}
         onClear={onClearChat}
         messages={messages}
+        pushValue={pushValue}
+        onClearPush={onClearPush}
       />
     </div>
   )
