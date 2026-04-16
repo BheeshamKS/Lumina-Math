@@ -57,7 +57,7 @@ async def _enrich(problem: str, steps: list[dict], final_answer: str) -> list[di
         f"Final answer: {final_answer}\n\n"
         "For each step, add an 'explanation' field: 1-2 plain English sentences "
         "explaining WHY this step is done and what it means mathematically. "
-        "Be concise. No LaTeX. No markdown symbols. "
+        "Be concise. Wrap all mathematical variables, equations, and expressions in single dollar signs for LaTeX rendering (e.g. $x^2 + 2x = 0$). "
         'Return JSON: {"steps": [<full step objects with explanation added>]}'
     )
 

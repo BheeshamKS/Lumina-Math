@@ -26,7 +26,8 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
   const mfRef    = useRef(null)   // <math-field> DOM element
   const barRef   = useRef(null)   // .math-input-bar — keyboard container anchor
   const submitRef = useRef(null)  // always holds the latest submit() so keydown is fresh
-  const [hasContent, setHasContent] = useState(false)
+  const [hasMath, setHasMath] = useState(false)
+  const [textValue, setTextValue] = useState('')
 
   // ── Wire MathLive once after element mounts ───────────────────────────────
   useEffect(() => {
@@ -221,7 +222,7 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     const isMobile = window.matchMedia('(max-width: 640px)').matches
     mf.mathVirtualKeyboardPolicy = isMobile ? 'onfocus' : 'manual'
 
-    const handleInput = () => setHasContent(!!mf.getValue('latex').trim())
+    const handleInput = () => setHasMath(!!mf.getValue('latex').trim())
 
     const handleKeydown = (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -266,7 +267,7 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     const mf = mfRef.current
     if (mf) {
       mf.executeCommand(['insert', pushValue])
-      setHasContent(!!mf.getValue('latex').trim())
+      setHasMath(!!mf.getValue('latex').trim())
       mf.focus()
     }
     onClearPush?.()
@@ -277,14 +278,20 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     const mf = mfRef.current
     if (!mf || loading) return
     const latex = mf.getValue('latex').trim()
-    if (!latex) return
-    const text = toBackendText(latex)
-    if (!text) return
-    onSend(text)
+    const mathText = latex ? toBackendText(latex) : ''
+    const userText = textValue.trim()
+    
+    if (!mathText && !userText) return
+    
+    // Combine them intelligently
+    const combined = [mathText, userText].filter(Boolean).join('\n\n')
+    
+    onSend(combined)
     mf.setValue('')
-    setHasContent(false)
+    setHasMath(false)
+    setTextValue('')
     mf.focus()
-  }, [loading, onSend])
+  }, [loading, onSend, textValue])
 
   // Keep submitRef current so the keydown closure always calls the latest version
   useEffect(() => { submitRef.current = submit }, [submit])
@@ -300,7 +307,7 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     }
   }
 
-  const canSend = !loading && hasContent
+  const canSend = !loading && (hasMath || !!textValue.trim())
   const isEmpty = !messages?.length
 
   return (
@@ -326,8 +333,26 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
           <math-field
             ref={mfRef}
             className="math-field-el"
-            placeholder="Type an equation — e.g. 2x + 4 = 8  or  integrate x^2 dx"
+            placeholder="Enter an equation (e.g. 2x + 4 = 8)"
             aria-label="Math input"
+          />
+          <textarea
+            className="math-input-textarea"
+            placeholder="Add instructions (e.g. 'How do I solve this?', or leave blank)"
+            value={textValue}
+            onChange={(e) => {
+              setTextValue(e.target.value)
+              e.target.style.height = 'auto'
+              e.target.style.height = (e.target.scrollHeight) + 'px'
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                submitRef.current?.()
+              }
+            }}
+            rows={1}
+            disabled={loading}
           />
         </div>
 
