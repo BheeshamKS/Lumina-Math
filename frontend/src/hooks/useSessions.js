@@ -63,6 +63,11 @@ export function useSessions(token) {
     }
   }, [token])
 
+  /** Pre-populate the save tracker so restored messages don't re-save. */
+  const markSaved = useCallback((msgId) => {
+    if (msgId) lastSavedMsgId.current = msgId
+  }, [])
+
   /**
    * Auto-save a message pair (user + assistant) to the current session.
    * If no active session exists, one is created automatically.
@@ -105,5 +110,6 @@ export function useSessions(token) {
     removeSession,
     loadHistory,
     autoSave,
+    markSaved,
   }
 }

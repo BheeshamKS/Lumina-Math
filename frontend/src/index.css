@@ -1,90 +1,99 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* ── Design tokens ──────────────────────────────────────────────── */
-/*
-   @theme makes every variable available as a Tailwind utility:
-     bg-surface, text-cream, border-border-light, etc.
-   The :root block below keeps all existing CSS (chat.css, sidebar.css…)
-   working unchanged — both sets of names resolve to the same values.
-*/
+/* ══════════════════════════════════════════════════════════════════
+   Lumina Math — Brilliant-themed design tokens
+   Dark navy canvas, lime-green energy, pill buttons, game-feel.
+   ══════════════════════════════════════════════════════════════════ */
 @theme {
-  /* Surfaces — warm dark charcoal (not pitch black) */
-  --color-bg-solid:     #161310;
-  --color-surface:      #1e1b14;
-  --color-card:         #252119;
-  --color-card-raised:  #2d2920;
-  --color-border:       #302c22;
-  --color-border-light: #3e382a;
+  --color-bg-primary:   #0f0f1a;
+  --color-bg-surface:   #1a1a2e;
+  --color-bg-elevated:  #16213e;
 
-  /* Amber gold */
-  --color-amber:        #C49035;
-  --color-amber-bright: #DBA840;
-  --color-amber-dim:    rgba(196,144,53,0.10);
-  --color-amber-glow:   rgba(196,144,53,0.22);
+  --color-accent-primary:   #c8f04b;
+  --color-accent-secondary: #6c63ff;
+  --color-accent-coral:     #ff6b6b;
 
-  /* Cobalt */
-  --color-cobalt:        #3D68B4;
-  --color-cobalt-bright: #4A7CCE;
-  --color-cobalt-dim:    rgba(61,104,180,0.15);
+  --color-text-primary: #f0f0f0;
+  --color-text-muted:   #8892a4;
 
-  /* Text — warm parchment, noticeably brighter */
-  --color-cream:   #EDE5CF;
-  --color-cream-2: #A39278;
-  --color-cream-3: #5e5549;
+  --color-border-subtle: rgba(255,255,255,0.08);
 
-  /* State */
-  --color-success: #5A9E72;
-  --color-error:   #B86060;
-
-  /* Fonts */
-  --font-display: 'Cormorant Garamond', Georgia, serif;
-  --font-sans:    'DM Sans', system-ui, sans-serif;
-  --font-mono:    'JetBrains Mono', monospace;
-
-  /* Radius */
-  --radius:    5px;
-  --radius-lg: 9px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
 }
 
-/* ── CSS variables — used by all existing CSS files ─────────────── */
+/* ── CSS custom properties ─────────────────────────────────────── */
 :root {
-  --bg:            transparent;
-  --bg-solid:      #161310;
-  --surface:       #1e1b14;
-  --card:          #252119;
-  --card-raised:   #2d2920;
-  --border:        #302c22;
-  --border-light:  #3e382a;
+  /* Brilliant tokens (primary) */
+  --bg-primary:   #0f0f1a;
+  --bg-surface:   #1a1a2e;
+  --bg-elevated:  #16213e;
 
-  --amber:         #C49035;
-  --amber-bright:  #DBA840;
-  --amber-dim:     rgba(196,144,53,0.10);
-  --amber-glow:    rgba(196,144,53,0.22);
+  --accent-primary:        #c8f04b;
+  --accent-primary-bright: #d6f56b;
+  --accent-primary-dim:    rgba(200,240,75,0.10);
+  --accent-primary-glow:   rgba(200,240,75,0.25);
 
-  --cobalt:        #3D68B4;
-  --cobalt-bright: #4A7CCE;
-  --cobalt-dim:    rgba(61,104,180,0.15);
+  --accent-secondary:        #6c63ff;
+  --accent-secondary-bright: #857dff;
+  --accent-secondary-dim:    rgba(108,99,255,0.14);
 
-  --cream:         #EDE5CF;
-  --cream-2:       #A39278;
-  --cream-3:       #5e5549;
+  --accent-coral: #ff6b6b;
 
-  --success:       #5A9E72;
-  --error:         #B86060;
+  --text-primary: #f0f0f0;
+  --text-muted:   #8892a4;
+  --text-faint:   #5a6480;
 
-  --radius:        5px;
-  --radius-lg:     9px;
+  --border-subtle:  rgba(255,255,255,0.08);
+  --border-medium:  rgba(255,255,255,0.14);
 
-  --font-display:  'Cormorant Garamond', Georgia, serif;
-  --font-sans:     'DM Sans', system-ui, sans-serif;
-  --font-mono:     'JetBrains Mono', monospace;
+  --success: #4ade80;
+  --error:   #ff6b6b;
+
+  --radius-sm:   8px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-pill: 999px;
+
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.3);
+  --shadow-float: 0 12px 40px rgba(0,0,0,0.45);
+
+  /* ── Legacy aliases (map old amber/cream/cobalt vars onto Brilliant tokens) ── */
+  --bg-solid:      var(--bg-primary);
+  --surface:       var(--bg-surface);
+  --card:          var(--bg-elevated);
+  --card-raised:   #1e2a4a;
+  --border:        var(--border-subtle);
+  --border-light:  var(--border-medium);
+
+  --amber:         var(--accent-primary);
+  --amber-bright:  var(--accent-primary-bright);
+  --amber-dim:     var(--accent-primary-dim);
+  --amber-glow:    var(--accent-primary-glow);
+
+  --cobalt:        var(--accent-secondary);
+  --cobalt-bright: var(--accent-secondary-bright);
+  --cobalt-dim:    var(--accent-secondary-dim);
+
+  --cream:   var(--text-primary);
+  --cream-2: var(--text-muted);
+  --cream-3: var(--text-faint);
+
+  --radius:    var(--radius-sm);
 }
 
 /* ── Reset ──────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
-  font-size: 19px;
+  font-size: 16px;
 }
 
 html, body, #root {
@@ -95,39 +104,27 @@ html, body, #root {
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--bg-solid);
+  background-color: var(--bg-primary);
   background-image:
-    radial-gradient(ellipse at 15% 0%,   rgba(196,144,53,0.07) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 100%, rgba(61,104,180,0.06) 0%, transparent 50%);
+    radial-gradient(ellipse at 12% 0%,   rgba(200,240,75,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 88% 100%, rgba(108,99,255,0.07) 0%, transparent 50%);
   background-attachment: fixed;
-  color: var(--cream);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-/* Grain overlay — subtle paper texture */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.025;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 300px 300px;
+  font-feature-settings: "cv11", "ss01";
 }
 
 /* ── Scrollbar ──────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: var(--cream-3); }
+::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
 
 /* ── KaTeX overrides ────────────────────────────────────────────── */
 .katex {
   font-size: 1.05em;
-  color: var(--cream);
+  color: var(--text-primary);
 }
 .katex-display {
   overflow-x: auto;
@@ -143,9 +140,24 @@ body::after {
   clip: rect(0,0,0,0); border: 0;
 }
 
+.label-caps {
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+/* ── Pixel-art decorator (subtle, reusable) ─────────────────────── */
+.pix-decorator {
+  color: var(--accent-primary);
+  opacity: 0.15;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ── Animations ─────────────────────────────────────────────────── */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -154,14 +166,14 @@ body::after {
   to   { opacity: 1; }
 }
 
-@keyframes pulse-amber {
+@keyframes pulse-lime {
   0%, 100% { opacity: 0.35; transform: scale(1); }
-  50%       { opacity: 0.7;  transform: scale(1.04); }
+  50%       { opacity: 0.75; transform: scale(1.05); }
 }
 
 @keyframes typing-dot {
   0%, 80%, 100% { transform: translateY(0);    opacity: 0.3; }
-  40%           { transform: translateY(-4px);  opacity: 1;   }
+  40%           { transform: translateY(-4px); opacity: 1;   }
 }
 
 @keyframes spin {
@@ -172,4 +184,9 @@ body::after {
 @keyframes shimmer {
   0%   { background-position: -200% center; }
   100% { background-position:  200% center; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-primary-glow); transform: scale(1); }
+  50%      { box-shadow: 0 0 0 6px rgba(200,240,75,0); transform: scale(1.05); }
 }

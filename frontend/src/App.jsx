@@ -55,6 +55,9 @@ function AuthenticatedApp() {
         : undefined,
       timestamp: new Date(m.created_at).getTime(),
     }))
+    // Pre-mark last assistant message as saved so auto-save doesn't re-persist it
+    const lastAssistant = [...converted].reverse().find((m) => m.role === 'assistant')
+    if (lastAssistant) sessions.markSaved(lastAssistant.id)
     chat.restoreHistory(converted)
   }, [sessions, chat])
 
@@ -65,6 +68,15 @@ function AuthenticatedApp() {
     setCurrentSessionId(session.id)
     chat.clearChat()
   }, [chat, sessions])
+
+  // Keep currentSessionId in sync when a session is auto-created or cleared
+  useEffect(() => {
+    if (sessions.activeSession?.id) {
+      setCurrentSessionId(sessions.activeSession.id)
+    } else {
+      setCurrentSessionId(null)
+    }
+  }, [sessions.activeSession])
 
   // Auto-save after each completed assistant response
   useEffect(() => {
@@ -147,10 +159,11 @@ function Inner() {
   if (!restored) return (
     <div style={{
       height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--bg-solid)', color: 'var(--amber)',
-      fontFamily: 'var(--font-display)', fontSize: '1.5rem', letterSpacing: '0.05em',
+      background: 'var(--bg-primary)', color: 'var(--text-primary)',
+      fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: 800,
+      letterSpacing: '-0.02em',
     }}>
-      Lumina <em style={{ fontStyle: 'italic', marginLeft: '0.3em' }}>Math</em>
+      Lumina <span style={{ color: 'var(--accent-primary)', marginLeft: '0.3em' }}>Math</span>
     </div>
   )
   return token ? <AuthenticatedApp /> : <LoginPage />

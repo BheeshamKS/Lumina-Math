@@ -25,74 +25,74 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     if (!mf) return
 
     // ── Dark-theme CSS custom properties on the math-field itself ──
-    mf.style.setProperty('--hue', '38')                   // amber-ish accent
+    mf.style.setProperty('--hue', '75')                   // lime accent
     mf.style.setProperty('--keyboard-zindex', '9999')
-    mf.style.setProperty('--caret-color', 'var(--amber)')
-    mf.style.setProperty('--selection-background-color', 'rgba(196,144,53,0.25)')
-    
-    // Force transparent background directly
+    mf.style.setProperty('--caret-color', 'var(--accent-primary)')
+    mf.style.setProperty('--selection-background-color', 'rgba(200,240,75,0.25)')
+
     mf.style.background = 'transparent'
     mf.style.setProperty('--_field-background', 'transparent')
-    mf.menuItems = []                                      // suppress built-in menu
+    mf.menuItems = []
 
-    // ── Inject keyboard theme into document.head ──────────────────────────
-    // The virtual keyboard is appended directly to <body> — it is NOT inside
-    // the React root, so CSS vars set on <math-field> never reach it.
-    // Injecting a <style> into <head> scoped to .ML__keyboard fixes this.
     if (!document.getElementById('lumina-kb-theme')) {
       const styleEl = document.createElement('style')
       styleEl.id = 'lumina-kb-theme'
       styleEl.textContent = `
         .ML__keyboard {
-          --keyboard-background: #161310;
-          --keyboard-border: #302c22;
-          --keyboard-toolbar-background: #1e1b14;
-          --keyboard-toolbar-text: #A39278;
-          --keyboard-toolbar-text-active: #C49035;
-          --keyboard-toolbar-background-hover: rgba(196,144,53,0.10);
-          --keyboard-toolbar-background-selected: rgba(196,144,53,0.15);
-          --keyboard-accent-color: #C49035;
-          --keycap-background: #252119;
-          --keycap-background-hover: #2d2920;
-          --keycap-background-active: rgba(196,144,53,0.22);
-          --keycap-background-pressed: rgba(196,144,53,0.28);
-          --keycap-border: #302c22;
-          --keycap-border-bottom: #3e382a;
-          --keycap-text: #EDE5CF;
-          --keycap-text-active: #161310;
-          --keycap-text-hover: #EDE5CF;
-          --keycap-shift-text: #C49035;
-          --keycap-secondary-background: #1e1b14;
-          --keycap-secondary-background-hover: #252119;
-          --keycap-secondary-text: #A39278;
-          --keycap-secondary-border: #302c22;
-          --keycap-secondary-border-bottom: #3e382a;
-          --keycap-primary-background: #C49035;
-          --keycap-primary-background-hover: #DBA840;
-          --keycap-primary-text: #161310;
-          --variant-panel-background: #1e1b14;
-          --variant-keycap-text: #EDE5CF;
-          --variant-keycap-text-active: #161310;
-          --variant-keycap-background-active: #C49035;
-          --box-placeholder-color: #C49035;
-          border-top: 1px solid #302c22 !important;
-          box-shadow: 0 -6px 28px rgba(0,0,0,0.55) !important;
+          --keyboard-background: #0f0f1a;
+          --keyboard-border: rgba(255,255,255,0.08);
+          --keyboard-toolbar-background: #1a1a2e;
+          --keyboard-toolbar-text: #8892a4;
+          --keyboard-toolbar-text-active: #c8f04b;
+          --keyboard-toolbar-background-hover: rgba(200,240,75,0.10);
+          --keyboard-toolbar-background-selected: rgba(200,240,75,0.18);
+          --keyboard-accent-color: #c8f04b;
+          --keycap-background: #16213e;
+          --keycap-background-hover: #1e2a4a;
+          --keycap-background-active: rgba(200,240,75,0.22);
+          --keycap-background-pressed: rgba(200,240,75,0.32);
+          --keycap-border: rgba(255,255,255,0.08);
+          --keycap-border-bottom: rgba(255,255,255,0.14);
+          --keycap-text: #f0f0f0;
+          --keycap-text-active: #0f0f1a;
+          --keycap-text-hover: #f0f0f0;
+          --keycap-shift-text: #c8f04b;
+          --keycap-secondary-background: #1a1a2e;
+          --keycap-secondary-background-hover: #16213e;
+          --keycap-secondary-text: #8892a4;
+          --keycap-secondary-border: rgba(255,255,255,0.08);
+          --keycap-secondary-border-bottom: rgba(255,255,255,0.14);
+          --keycap-primary-background: #c8f04b;
+          --keycap-primary-background-hover: #d6f56b;
+          --keycap-primary-text: #0f0f1a;
+          --variant-panel-background: #1a1a2e;
+          --variant-keycap-text: #f0f0f0;
+          --variant-keycap-text-active: #0f0f1a;
+          --variant-keycap-background-active: #c8f04b;
+          --box-placeholder-color: #c8f04b;
+          border-top: 1px solid rgba(255,255,255,0.08) !important;
+          box-shadow: 0 -8px 32px rgba(0,0,0,0.6) !important;
         }
-        /* Toolbar tab strip */
         .ML__keyboard .MLK__toolbar .tab {
-          color: #A39278 !important;
-          font-family: 'DM Sans', sans-serif !important;
+          color: #8892a4 !important;
+          font-family: 'Inter', sans-serif !important;
           font-size: 0.76rem !important;
+          font-weight: 600 !important;
           letter-spacing: 0.05em !important;
         }
         .ML__keyboard .MLK__toolbar .tab.is-selected {
-          color: #C49035 !important;
-          border-bottom: 2px solid #C49035 !important;
+          color: #c8f04b !important;
+          border-bottom: 2px solid #c8f04b !important;
         }
-        /* Horizontal rule between toolbar and keys */
         .ML__keyboard .MLK__toolbar {
-          background: #1e1b14 !important;
-          border-bottom: 1px solid #302c22 !important;
+          background: #1a1a2e !important;
+          border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+          overflow-x: auto !important;
+          overflow-y: visible !important;
+          scrollbar-width: none !important;
+        }
+        .ML__keyboard .MLK__toolbar::-webkit-scrollbar {
+          display: none !important;
         }
       `
       document.head.appendChild(styleEl)
