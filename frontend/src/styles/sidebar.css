@@ -91,7 +91,7 @@
   cursor: pointer; font-family: var(--font-sans);
   font-size: 0.84rem; font-weight: 700; letter-spacing: 0.01em;
   transition: all 0.18s ease;
-  box-shadow: 0 2px 12px rgba(200,240,75,0.18);
+  box-shadow: 0 2px 12px rgba(200,242,67,0.18);
 }
 .new-session-btn:hover {
   filter: brightness(1.08);
@@ -126,7 +126,7 @@
   border-left-color: var(--border-medium);
 }
 .ss-item.active {
-  background: rgba(200,240,75,0.12);
+  background: rgba(200,242,67,0.12);
   border-left-color: var(--accent-primary);
 }
 .ss-icon { color: var(--text-faint); flex-shrink: 0; }
@@ -168,7 +168,7 @@
   letter-spacing: 0.01em;
   transition: all 0.18s ease;
 }
-.fc-cat-btn:hover { color: var(--accent-primary); background: rgba(200,240,75,0.06); }
+.fc-cat-btn:hover { color: var(--accent-primary); background: rgba(200,242,67,0.06); }
 .fc-cat-icon {
   width: 24px; text-align: center;
   font-size: 0.9rem; color: var(--accent-primary); opacity: 0.9;
@@ -190,7 +190,7 @@
   transition: all 0.18s ease;
 }
 .fc-item:last-child { border-bottom: none; }
-.fc-item:hover { background: rgba(200,240,75,0.07); }
+.fc-item:hover { background: rgba(200,242,67,0.07); }
 .fc-item-name {
   font-family: var(--font-sans); font-size: 0.7rem;
   font-weight: 700; letter-spacing: 0.08em;

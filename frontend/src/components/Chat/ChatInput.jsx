@@ -25,10 +25,10 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     if (!mf) return
 
     // ── Dark-theme CSS custom properties on the math-field itself ──
-    mf.style.setProperty('--hue', '75')                   // lime accent
+    mf.style.setProperty('--hue', '72')
     mf.style.setProperty('--keyboard-zindex', '9999')
     mf.style.setProperty('--caret-color', 'var(--accent-primary)')
-    mf.style.setProperty('--selection-background-color', 'rgba(200,240,75,0.25)')
+    mf.style.setProperty('--selection-background-color', 'var(--accent-primary-glow)')
 
     mf.style.background = 'transparent'
     mf.style.setProperty('--_field-background', 'transparent')
@@ -37,56 +37,58 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     if (!document.getElementById('lumina-kb-theme')) {
       const styleEl = document.createElement('style')
       styleEl.id = 'lumina-kb-theme'
+      const root = getComputedStyle(document.documentElement)
+      const get = (v) => root.getPropertyValue(v).trim()
       styleEl.textContent = `
         .ML__keyboard {
-          --keyboard-background: #0f0f1a;
-          --keyboard-border: rgba(255,255,255,0.08);
-          --keyboard-toolbar-background: #1a1a2e;
-          --keyboard-toolbar-text: #8892a4;
-          --keyboard-toolbar-text-active: #c8f04b;
-          --keyboard-toolbar-background-hover: rgba(200,240,75,0.10);
-          --keyboard-toolbar-background-selected: rgba(200,240,75,0.18);
-          --keyboard-accent-color: #c8f04b;
-          --keycap-background: #16213e;
-          --keycap-background-hover: #1e2a4a;
-          --keycap-background-active: rgba(200,240,75,0.22);
-          --keycap-background-pressed: rgba(200,240,75,0.32);
-          --keycap-border: rgba(255,255,255,0.08);
-          --keycap-border-bottom: rgba(255,255,255,0.14);
-          --keycap-text: #f0f0f0;
-          --keycap-text-active: #0f0f1a;
-          --keycap-text-hover: #f0f0f0;
-          --keycap-shift-text: #c8f04b;
-          --keycap-secondary-background: #1a1a2e;
-          --keycap-secondary-background-hover: #16213e;
-          --keycap-secondary-text: #8892a4;
-          --keycap-secondary-border: rgba(255,255,255,0.08);
-          --keycap-secondary-border-bottom: rgba(255,255,255,0.14);
-          --keycap-primary-background: #c8f04b;
-          --keycap-primary-background-hover: #d6f56b;
-          --keycap-primary-text: #0f0f1a;
-          --variant-panel-background: #1a1a2e;
-          --variant-keycap-text: #f0f0f0;
-          --variant-keycap-text-active: #0f0f1a;
-          --variant-keycap-background-active: #c8f04b;
-          --box-placeholder-color: #c8f04b;
-          border-top: 1px solid rgba(255,255,255,0.08) !important;
+          --keyboard-background: ${get('--bg-primary')};
+          --keyboard-border: ${get('--border-subtle')};
+          --keyboard-toolbar-background: ${get('--bg-surface')};
+          --keyboard-toolbar-text: ${get('--text-muted')};
+          --keyboard-toolbar-text-active: ${get('--accent-primary')};
+          --keyboard-toolbar-background-hover: ${get('--accent-primary-dim')};
+          --keyboard-toolbar-background-selected: ${get('--accent-secondary-dim')};
+          --keyboard-accent-color: ${get('--accent-primary')};
+          --keycap-background: ${get('--bg-elevated')};
+          --keycap-background-hover: ${get('--card-raised')};
+          --keycap-background-active: ${get('--accent-primary-dim')};
+          --keycap-background-pressed: ${get('--accent-primary-glow')};
+          --keycap-border: ${get('--border-subtle')};
+          --keycap-border-bottom: ${get('--border-medium')};
+          --keycap-text: ${get('--text-primary')};
+          --keycap-text-active: ${get('--bg-primary')};
+          --keycap-text-hover: ${get('--text-primary')};
+          --keycap-shift-text: ${get('--accent-primary')};
+          --keycap-secondary-background: ${get('--bg-surface')};
+          --keycap-secondary-background-hover: ${get('--bg-elevated')};
+          --keycap-secondary-text: ${get('--text-muted')};
+          --keycap-secondary-border: ${get('--border-subtle')};
+          --keycap-secondary-border-bottom: ${get('--border-medium')};
+          --keycap-primary-background: ${get('--accent-primary')};
+          --keycap-primary-background-hover: ${get('--accent-primary-bright')};
+          --keycap-primary-text: ${get('--bg-primary')};
+          --variant-panel-background: ${get('--bg-surface')};
+          --variant-keycap-text: ${get('--text-primary')};
+          --variant-keycap-text-active: ${get('--bg-primary')};
+          --variant-keycap-background-active: ${get('--accent-primary')};
+          --box-placeholder-color: ${get('--accent-primary')};
+          border-top: 1px solid ${get('--border-subtle')} !important;
           box-shadow: 0 -8px 32px rgba(0,0,0,0.6) !important;
         }
         .ML__keyboard .MLK__toolbar .tab {
-          color: #8892a4 !important;
+          color: ${get('--text-muted')} !important;
           font-family: 'Inter', sans-serif !important;
           font-size: 0.76rem !important;
           font-weight: 600 !important;
           letter-spacing: 0.05em !important;
         }
         .ML__keyboard .MLK__toolbar .tab.is-selected {
-          color: #c8f04b !important;
-          border-bottom: 2px solid #c8f04b !important;
+          color: ${get('--accent-primary')} !important;
+          border-bottom: 2px solid ${get('--accent-primary')} !important;
         }
         .ML__keyboard .MLK__toolbar {
-          background: #1a1a2e !important;
-          border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+          background: ${get('--bg-surface')} !important;
+          border-bottom: 1px solid ${get('--border-subtle')} !important;
           overflow-x: auto !important;
           overflow-y: visible !important;
           scrollbar-width: none !important;

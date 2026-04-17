@@ -6,12 +6,13 @@
    Dark navy canvas, lime-green energy, pill buttons, game-feel.
    ══════════════════════════════════════════════════════════════════ */
 @theme {
-  --color-bg-primary:   #0f0f1a;
-  --color-bg-surface:   #1a1a2e;
-  --color-bg-elevated:  #16213e;
+  --color-bg-primary:   #0a0c12;
+  --color-bg-surface:   #141618;
+  --color-bg-elevated:  #1c1e22;
 
-  --color-accent-primary:   #c8f04b;
-  --color-accent-secondary: #6c63ff;
+  --color-accent-primary:   #c8f243;
+  --color-accent-secondary: #6c7e34;
+  --color-accent-tertiary:  #cfe4ff;
   --color-accent-coral:     #ff6b6b;
 
   --color-text-primary: #f0f0f0;
@@ -27,19 +28,22 @@
 
 /* ── CSS custom properties ─────────────────────────────────────── */
 :root {
-  /* Brilliant tokens (primary) */
-  --bg-primary:   #0f0f1a;
-  --bg-surface:   #1a1a2e;
-  --bg-elevated:  #16213e;
+  /* Design tokens */
+  --bg-primary:   #0a0c12;
+  --bg-surface:   #141618;
+  --bg-elevated:  #1c1e22;
 
-  --accent-primary:        #c8f04b;
-  --accent-primary-bright: #d6f56b;
-  --accent-primary-dim:    rgba(200,240,75,0.10);
-  --accent-primary-glow:   rgba(200,240,75,0.25);
+  --accent-primary:        #c8f243;
+  --accent-primary-bright: #d4f660;
+  --accent-primary-dim:    rgba(200,242,67,0.10);
+  --accent-primary-glow:   rgba(200,242,67,0.25);
 
-  --accent-secondary:        #6c63ff;
-  --accent-secondary-bright: #857dff;
-  --accent-secondary-dim:    rgba(108,99,255,0.14);
+  --accent-secondary:        #6c7e34;
+  --accent-secondary-bright: #859c3f;
+  --accent-secondary-dim:    rgba(108,126,52,0.18);
+
+  --accent-tertiary:        #cfe4ff;
+  --accent-tertiary-dim:    rgba(207,228,255,0.12);
 
   --accent-coral: #ff6b6b;
 
@@ -69,7 +73,7 @@
   --bg-solid:      var(--bg-primary);
   --surface:       var(--bg-surface);
   --card:          var(--bg-elevated);
-  --card-raised:   #1e2a4a;
+  --card-raised:   #22242a;
   --border:        var(--border-subtle);
   --border-light:  var(--border-medium);
 
@@ -106,8 +110,8 @@ body {
   font-family: var(--font-sans);
   background-color: var(--bg-primary);
   background-image:
-    radial-gradient(ellipse at 12% 0%,   rgba(200,240,75,0.06) 0%, transparent 55%),
-    radial-gradient(ellipse at 88% 100%, rgba(108,99,255,0.07) 0%, transparent 50%);
+    radial-gradient(ellipse at 12% 0%,   rgba(200,242,67,0.05) 0%, transparent 55%),
+    radial-gradient(ellipse at 88% 100%, rgba(108,126,52,0.06) 0%, transparent 50%);
   background-attachment: fixed;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
