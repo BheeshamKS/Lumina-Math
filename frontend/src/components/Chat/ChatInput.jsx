@@ -9,18 +9,8 @@ import React, { useRef, useEffect, useCallback, useState } from 'react'
 import { Send, RotateCcw, Keyboard } from 'lucide-react'
 
 // ── LaTeX → backend-friendly text ────────────────────────────────────────────
-// MathLive produces LaTeX. The backend's _preprocess_latex handles most of it,
-// but \int gets stripped to nothing (it's not in any keyword list).
-// We fix the known gap here before sending.
-function toBackendText(latex) {
-  return latex
-    .replace(/\\int\s*/g, 'integrate ')        // \int → integrate
-    .replace(/\\lim(?:_?\{[^}]*\})?\s*/g, 'limit of ')  // \lim_{x→0} → limit of
-    .replace(/\\partial\s*/g, 'd')             // \partial → d
-    .replace(/\\[,;! ]\s*/g, ' ')              // spacing commands
-    .replace(/\s+/g, ' ')
-    .trim()
-}
+// The backend now handles all latex preprocessing directly in math_engine.py
+// so we can preserve the beautiful KaTeX syntax in the chat history.
 
 export function ChatInput({ onSend, loading, onClear, messages, pushValue, onClearPush }) {
   const mfRef    = useRef(null)   // <math-field> DOM element
@@ -278,7 +268,7 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     const mf = mfRef.current
     if (!mf || loading) return
     const latex = mf.getValue('latex').trim()
-    const mathText = latex ? toBackendText(latex) : ''
+    const mathText = latex ? `$$\n${latex}\n$$` : ''
     const userText = textValue.trim()
     
     if (!mathText && !userText) return

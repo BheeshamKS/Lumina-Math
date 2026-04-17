@@ -56,6 +56,14 @@ _LATEX_SUBS = [
     (re.compile(r"\\(sin|cos|tan|log|ln)\s+(\w+)"), r"\1(\2)"),
     # \ln  →  log
     (re.compile(r"\\ln\b"), "log"),
+    # Integrals: \int → integrate
+    (re.compile(r"\\int\s*"), "integrate "),
+    # Limits: \lim_{x \to 0} → limit of 
+    (re.compile(r"\\lim(?:_?\{[^}]*\})?\s*"), "limit of "),
+    # Partial derivative: \partial → d
+    (re.compile(r"\\partial\s*"), "d"),
+    # Spacing syntax: \, \! \; \  → space
+    (re.compile(r"\\[,;! ]\s*"), " "),
     # Operators
     (re.compile(r"\\cdot"), "*"),
     (re.compile(r"\\times"), "*"),
