@@ -10,7 +10,7 @@ Lumina Math/
 │   ├── services/     groq_service.py · math_engine.py · ocr_service.py
 │   ├── db/           database.py · models.py · schemas.py · crud.py
 │   └── core/         config.py (settings from .env)
-└── frontend/         React + Vite (TypeScript-free, plain JSX)
+└── frontend/         React + Vite (TypeScript, strict mode)
     ├── src/
     │   ├── App.jsx
     │   ├── components/
@@ -48,7 +48,7 @@ npm run dev
 | LLM          | Groq `llama-3.3-70b-versatile` (JSON mode, formatting + ambiguity only) |
 | OCR          | OCR.space Engine 2 (replaces Gemini Vision) |
 | Auth         | Supabase JWT (HS256), refresh_token in sessionStorage |
-| Frontend     | React 18 + Vite, no TypeScript |
+| Frontend     | React 18 + Vite, TypeScript (strict) |
 | Math render  | react-markdown + remark-math + rehype-katex (prose), react-katex BlockMath (raw SymPy output) |
 
 ## Auth Flow
