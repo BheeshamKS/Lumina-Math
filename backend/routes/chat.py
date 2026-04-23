@@ -14,7 +14,6 @@ Flow:
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
-from jose import jwt, JWTError
 import os
 
 from services.math_engine import solve_problem, classify_problem_domain
@@ -22,6 +21,10 @@ from services.groq_explainer import explain_steps, extract_problem_strict
 from db.database import get_db
 from db import crud
 from sqlalchemy.orm import Session as DBSession
+from middleware.auth import _jwks_client, _token_alg
+
+import jwt as pyjwt
+from jose import jwt as jose_jwt, JWTError
 
 router = APIRouter()
 
@@ -44,13 +47,18 @@ def _decode_token_soft(authorization: Optional[str]) -> Optional[str]:
     if not authorization or not authorization.startswith("Bearer "):
         return None
     token = authorization[7:]
-    secret = os.getenv("SUPABASE_JWT_SECRET", "")
-    if not secret:
-        return None
     try:
-        payload = jwt.decode(token, secret, algorithms=["HS256"], options={"verify_aud": False})
+        alg = _token_alg(token)
+        if alg == "HS256":
+            secret = os.getenv("SUPABASE_JWT_SECRET", "")
+            if not secret:
+                return None
+            payload = jose_jwt.decode(token, secret, algorithms=["HS256"], options={"verify_aud": False})
+        else:
+            signing_key = _jwks_client().get_signing_key_from_jwt(token)
+            payload = pyjwt.decode(token, signing_key.key, algorithms=[alg], options={"verify_aud": False})
         return payload.get("sub")
-    except JWTError:
+    except Exception:
         return None
 
 
@@ -96,11 +104,8 @@ async def chat(
         chunks_dicts = [c.model_dump() for c in req.book_context]
         try:
             problem_text = await extract_problem_strict(req.message.strip(), chunks_dicts)
-        except ValueError:
-            raise HTTPException(
-                status_code=422,
-                detail="Could not extract a math problem from the selected question.",
-            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
     else:
         problem_text = req.message.strip()
 

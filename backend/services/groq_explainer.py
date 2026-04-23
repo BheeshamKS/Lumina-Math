@@ -124,6 +124,11 @@ async def extract_problem_strict(user_message: str, chunks: list[dict]) -> str:
     result = result.strip()
     if not result:
         raise ValueError("Empty extraction result")
+    if result == "PROOF_PROBLEM" or "..." in result:
+        raise ValueError(
+            "This appears to be a proof or conceptual question — no concrete expression to compute. "
+            "Try entering the specific equation or expression you want solved directly."
+        )
     return result
 
 
@@ -135,14 +140,19 @@ async def _extract_problem(user_message: str, chunks_text: str) -> str:
             {
                 "role": "system",
                 "content": (
-                    "You are a math extraction assistant. Given a textbook question and the user's "
-                    "natural-language request, extract ONLY the mathematical expression or equation "
-                    "to solve. Return ONLY the raw math — no explanation, no LaTeX delimiters."
+                    "You are a math extraction assistant. Given a textbook passage and the user's request, "
+                    "extract a single mathematical expression or equation that a computer algebra system (SymPy) can evaluate.\n\n"
+                    "Rules:\n"
+                    "- Return ONLY the raw math — no explanation, no LaTeX delimiters ($, $$)\n"
+                    "- Valid examples: 'x^2 - 5x + 6 = 0', 'integrate sin(x)', 'd/dx(x^3)', 'det([[1,2],[3,4]])'\n"
+                    "- If the problem asks to SOLVE, SIMPLIFY, DIFFERENTIATE, INTEGRATE, or COMPUTE a concrete expression, extract that expression\n"
+                    "- If the problem is a PROOF, VERIFICATION of a general theorem, or uses '...' to denote arbitrary terms, return exactly: PROOF_PROBLEM\n"
+                    "- If you cannot identify a specific computable expression, return exactly: PROOF_PROBLEM"
                 ),
             },
             {
                 "role": "user",
-                "content": f"Request: {user_message}\n\nQuestion text:\n{chunks_text}",
+                "content": f"Request: {user_message}\n\nTextbook passage:\n{chunks_text}",
             },
         ],
         max_tokens=256,
