@@ -6,7 +6,7 @@ All PKs are UUID; ARRAY(Text) used for solution steps (PostgreSQL dialect).
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Boolean, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import relationship
 
@@ -23,6 +23,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    plugins = relationship("UserPlugin", back_populates="user", cascade="all, delete-orphan")
 
 
 class Session(Base):
@@ -64,3 +65,19 @@ class Solution(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     message = relationship("Message", back_populates="solution")
+
+
+class UserPlugin(Base):
+    __tablename__ = "user_plugins"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    plugin_name = Column(String, nullable=False)
+    enabled = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="plugins")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "plugin_name", name="uq_user_plugin"),
+    )

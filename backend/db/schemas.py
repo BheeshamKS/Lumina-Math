@@ -100,6 +100,21 @@ class SolutionOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Plugins ───────────────────────────────────────────────────────────────────
+
+class PluginOut(BaseModel):
+    name: str
+    display_name: str
+    description: str
+    required_tools: list[str]
+    enabled: bool
+    always_enabled: bool
+
+
+class PluginToggle(BaseModel):
+    enabled: bool
+
+
 # Resolve forward references
 MessageCreate.model_rebuild()
 MessageOut.model_rebuild()

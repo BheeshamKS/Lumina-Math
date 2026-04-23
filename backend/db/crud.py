@@ -5,7 +5,7 @@ CRUD helpers — all DB mutations go through here, never directly in route handl
 from uuid import UUID
 from sqlalchemy.orm import Session as DBSession
 
-from db.models import User, Session, Message, Solution
+from db.models import User, Session, Message, Solution, UserPlugin
 from db import schemas
 
 
@@ -82,6 +82,29 @@ def list_messages(db: DBSession, session_id: UUID) -> list[Message]:
         .order_by(Message.created_at)
         .all()
     )
+
+
+# ── User Plugins ──────────────────────────────────────────────────────────────
+
+def get_user_plugin_overrides(db: DBSession, user_id: UUID) -> dict[str, bool]:
+    rows = db.query(UserPlugin).filter(UserPlugin.user_id == user_id).all()
+    return {r.plugin_name: r.enabled for r in rows}
+
+
+def set_user_plugin(db: DBSession, user_id: UUID, plugin_name: str, enabled: bool) -> UserPlugin:
+    row = (
+        db.query(UserPlugin)
+        .filter(UserPlugin.user_id == user_id, UserPlugin.plugin_name == plugin_name)
+        .first()
+    )
+    if row:
+        row.enabled = enabled
+    else:
+        row = UserPlugin(user_id=user_id, plugin_name=plugin_name, enabled=enabled)
+        db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
 
 
 def create_message(

@@ -18,6 +18,8 @@ from routes.auth import router as auth_router
 from routes.sessions import router as sessions_router
 from routes.solve import router as solve_router
 from routes.chat import router as chat_router
+from routes.plugins import router as plugins_router
+import plugins  # noqa: F401 — triggers plugin self-registration
 
 def _run_migrations():
     ini_path = Path(__file__).parent / "alembic.ini"
@@ -48,6 +50,7 @@ app.include_router(auth_router,     prefix="/api")
 app.include_router(sessions_router, prefix="/api")
 app.include_router(solve_router,    prefix="/api")
 app.include_router(chat_router,     prefix="/api")
+app.include_router(plugins_router,  prefix="/api")
 
 
 @app.get("/api/health")

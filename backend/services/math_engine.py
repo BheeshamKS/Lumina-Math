@@ -701,3 +701,30 @@ def solve_problem(text: str) -> dict[str, Any]:
         return solve_simplify(text)
     except Exception:
         raise ValueError(f"Unrecognized problem type: {text!r}")
+
+
+def classify_problem_domain(text: str) -> str:
+    """
+    Map a problem string to its required plugin domain.
+    Returns the plugin name that must be enabled to solve this problem.
+    """
+    raw = text.strip()
+    if _is_matrix_operation(raw):
+        return "linear_algebra"
+
+    preprocessed = _preprocess_latex(raw)
+    t = preprocessed.lower()
+
+    if _is_limit(preprocessed) or _is_derivative(preprocessed) or _is_integral(preprocessed):
+        return "calculus"
+
+    if re.search(r'\b(sin|cos|tan|sec|csc|cot|arcsin|arccos|arctan|sinh|cosh|tanh)\b', t):
+        return "trigonometry"
+
+    if re.search(r'\b(prime|isprime|gcd|lcm|mod(?:ular)?|factor(?:ization)?|divisib)\b', t):
+        return "number_theory"
+
+    if re.search(r'\b(mean|average|std|stdev|variance|distribution|probability|median|mode)\b', t):
+        return "statistics"
+
+    return "core"
