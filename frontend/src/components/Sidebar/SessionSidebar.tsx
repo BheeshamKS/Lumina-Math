@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, Trash2, MessageSquare, Loader2, LogOut, Sigma, BookOpen, ChevronDown, X } from 'lucide-react'
+import { Plus, Trash2, MessageSquare, Loader2, LogOut, Sigma, BookOpen, ChevronDown, X, Settings } from 'lucide-react'
 import { BlockMath } from 'react-katex'
 import { useAuth } from '../../context/AuthContext'
 import { FORMULA_CATEGORIES } from '../../data/formulas'
@@ -55,11 +55,12 @@ interface SessionSidebarProps {
   onFormulaInsert: (text: string) => void
   isOpen: boolean
   onClose: () => void
+  onPluginsOpen?: () => void
 }
 
 export function SessionSidebar({
   sessions, loadingSessions, onSelectSession, onNewSession, onDeleteSession,
-  currentSessionId, onFormulaInsert, isOpen, onClose,
+  currentSessionId, onFormulaInsert, isOpen, onClose, onPluginsOpen,
 }: SessionSidebarProps) {
   const { user, logout } = useAuth()
   const [tab, setTab] = useState<SidebarTab>('sessions')
@@ -84,6 +85,7 @@ export function SessionSidebar({
           </div>
           <div className="ss-user">
             <span className="ss-email" title={user?.email}>{user?.email}</span>
+            <button className="icon-btn" onClick={onPluginsOpen} title="Plugin settings"><Settings size={14} /></button>
             <button className="icon-btn" onClick={logout} title="Log out"><LogOut size={14} /></button>
           </div>
         </div>

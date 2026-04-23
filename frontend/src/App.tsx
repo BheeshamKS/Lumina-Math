@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { LoginPage } from './components/Auth/LoginPage'
 import { SessionSidebar } from './components/Sidebar/SessionSidebar'
 import { ChatInterface } from './components/Chat/ChatInterface'
+import { PluginPanel } from './components/PluginPanel/PluginPanel'
 import { useChat } from './hooks/useChat'
 import { useSessions } from './hooks/useSessions'
 import { registerAuthCallbacks, exchangeOAuthCode } from './services/api'
@@ -11,7 +12,7 @@ import './styles/layout.css'
 import './styles/chat.css'
 import './styles/sidebar.css'
 import './styles/auth.css'
-import type { Message, SaveSolutionData } from './types'
+import type { Message, SaveSolutionData, BookContext } from './types'
 
 function AuthenticatedApp() {
   const { token, refreshSession, logout } = useAuth()
@@ -23,6 +24,7 @@ function AuthenticatedApp() {
   const [formulaPush, setFormulaPush]           = useState('')
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen]           = useState(false)
+  const [pluginPanelOpen, setPluginPanelOpen]   = useState(false)
 
   const chat     = useChat()
   const sessions = useSessions(token)
@@ -108,6 +110,10 @@ function AuthenticatedApp() {
     )
   }, [chat.messages, token]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleSendMessage = useCallback((text: string, bookContext?: BookContext) => {
+    chat.sendMessage(text, bookContext)
+  }, [chat])
+
   return (
     <div className="app-shell">
       <SessionSidebar
@@ -120,6 +126,7 @@ function AuthenticatedApp() {
         onFormulaInsert={setFormulaPush}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onPluginsOpen={() => setPluginPanelOpen(true)}
       />
 
       <main className="app-main">
@@ -135,12 +142,16 @@ function AuthenticatedApp() {
         <ChatInterface
           messages={chat.messages}
           loading={chat.loading}
-          onSendMessage={chat.sendMessage}
+          onSendMessage={handleSendMessage}
           onClearChat={chat.clearChat}
           pushValue={formulaPush}
           onClearPush={() => setFormulaPush('')}
         />
       </main>
+
+      {pluginPanelOpen && token && (
+        <PluginPanel token={token} onClose={() => setPluginPanelOpen(false)} />
+      )}
     </div>
   )
 }

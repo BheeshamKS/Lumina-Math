@@ -59,3 +59,36 @@ export interface SaveSolutionData {
   steps: string[]
   final_answer: string
 }
+
+// ── Plugins ────────────────────────────────────────────────────────────────
+
+export interface PluginInfo {
+  name: string
+  display_name: string
+  description: string
+  required_tools: string[]
+  enabled: boolean
+  always_enabled: boolean
+}
+
+// ── Book plugin ────────────────────────────────────────────────────────────
+
+export interface BookChunk {
+  chapter?: number
+  exercise?: string
+  question_number?: number
+  latex_content: string
+  page?: number
+}
+
+export interface BookContext {
+  chunks: BookChunk[]
+}
+
+export interface IndexedBook {
+  id: string
+  title: string
+  author: string
+  uploadedAt: number
+  index: BookChunk[]
+}

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { sendChat } from '../services/api'
-import type { Message, SolutionData } from '../types'
+import type { Message, SolutionData, BookContext } from '../types'
 
 let _idCounter = 0
 const uid = () => `msg_${++_idCounter}_${Date.now()}`
@@ -24,7 +24,7 @@ export function useChat() {
   }, [])
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, bookContext?: BookContext) => {
       if (!text.trim() || loading) return
 
       addMessage({ role: 'user', type: 'text', content: text })
@@ -32,7 +32,7 @@ export function useChat() {
       addMessage({ role: 'assistant', type: 'loading', content: '' })
 
       try {
-        const result = await sendChat(text)
+        const result = await sendChat(text, bookContext)
         setLastSolution(result)
         updateLast({ type: 'solution', content: '', data: result })
       } catch (err: unknown) {

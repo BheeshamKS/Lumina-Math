@@ -1,10 +1,12 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react'
-import { Send, RotateCcw, Keyboard } from 'lucide-react'
+import { Send, RotateCcw, Keyboard, Plus, X, BookOpen, Upload } from 'lucide-react'
+import { useDropzone } from 'react-dropzone'
 import type { MathfieldElement } from 'mathlive'
-import type { Message } from '../../types'
+import type { Message, IndexedBook, BookContext, BookChunk } from '../../types'
+import { listBooks, indexBook, searchBook } from '../../plugins/BookPlugin'
 
 interface ChatInputProps {
-  onSend: (text: string) => void
+  onSend: (text: string, bookContext?: BookContext) => void
   loading: boolean
   onClear: () => void
   messages: Message[]
@@ -15,10 +17,34 @@ interface ChatInputProps {
 export function ChatInput({ onSend, loading, onClear, messages, pushValue, onClearPush }: ChatInputProps) {
   const mfRef     = useRef<MathfieldElement | null>(null)
   const barRef    = useRef<HTMLDivElement | null>(null)
+  const menuRef   = useRef<HTMLDivElement | null>(null)
   const submitRef = useRef<(() => void) | null>(null)
-  const [hasMath, setHasMath]       = useState(false)
-  const [textValue, setTextValue]   = useState('')
+  const [hasMath, setHasMath]         = useState(false)
+  const [textValue, setTextValue]     = useState('')
+  const [menuOpen, setMenuOpen]       = useState(false)
+  const [books, setBooks]             = useState<IndexedBook[]>([])
+  const [activeBook, setActiveBook]   = useState<IndexedBook | null>(null)
+  const [uploading, setUploading]     = useState(false)
+  const [uploadForm, setUploadForm]   = useState<{ title: string; author: string }>({ title: '', author: '' })
+  const [uploadFile, setUploadFile]   = useState<File | null>(null)
 
+  // Load books from IndexedDB on mount
+  useEffect(() => {
+    listBooks().then(setBooks).catch(() => {})
+  }, [])
+
+  // Close menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // MathLive setup
   useEffect(() => {
     const mf = mfRef.current
     if (!mf) return
@@ -27,7 +53,6 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     mf.style.setProperty('--keyboard-zindex', '9999')
     mf.style.setProperty('--caret-color', 'var(--accent-primary)')
     mf.style.setProperty('--selection-background-color', 'var(--accent-primary-glow)')
-
     mf.style.background = 'transparent'
     mf.style.setProperty('--_field-background', 'transparent')
     mf.menuItems = []
@@ -91,9 +116,7 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
           overflow-y: visible !important;
           scrollbar-width: none !important;
         }
-        .ML__keyboard .MLK__toolbar::-webkit-scrollbar {
-          display: none !important;
-        }
+        .ML__keyboard .MLK__toolbar::-webkit-scrollbar { display: none !important; }
       `
       document.head.appendChild(styleEl)
     }
@@ -105,13 +128,10 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
       if (existingKb && existingKb.parentElement !== document.body) {
         document.body.appendChild(existingKb)
       }
-
       vk.layouts = [
-        'numeric',
-        'symbols',
+        'numeric', 'symbols',
         {
-          label: 'f(x)',
-          tooltip: 'Functions & Calculus',
+          label: 'f(x)', tooltip: 'Functions & Calculus',
           rows: [
             [
               { label: 'sin',    latex: '\\sin(#?)' },
@@ -127,54 +147,53 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
               { label: 'arctan', latex: '\\arctan(#?)', class: 'small' },
               { label: 'ln',     latex: '\\ln(#?)' },
               { label: 'log',    latex: '\\log(#?)' },
-              { label: 'log₁₀',  latex: '\\log_{10}(#?)', class: 'small' },
+              { label: 'log₁₀', latex: '\\log_{10}(#?)', class: 'small' },
             ],
             [
-              { label: '∫',      latex: '\\int_{#?}^{#?}#?\\,d#?' },
-              { label: '∂/∂x',   latex: '\\frac{\\partial #?}{\\partial #?}', class: 'small' },
-              { label: 'd/dx',   latex: '\\frac{d}{dx}#?', class: 'small' },
-              { label: 'lim',    latex: '\\lim_{#?\\to #?}#?' },
-              { label: 'Σ',      latex: '\\sum_{#?}^{#?}#?' },
-              { label: 'Π',      latex: '\\prod_{#?}^{#?}#?' },
+              { label: '∫',     latex: '\\int_{#?}^{#?}#?\\,d#?' },
+              { label: '∂/∂x',  latex: '\\frac{\\partial #?}{\\partial #?}', class: 'small' },
+              { label: 'd/dx',  latex: '\\frac{d}{dx}#?', class: 'small' },
+              { label: 'lim',   latex: '\\lim_{#?\\to #?}#?' },
+              { label: 'Σ',     latex: '\\sum_{#?}^{#?}#?' },
+              { label: 'Π',     latex: '\\prod_{#?}^{#?}#?' },
             ],
             [
-              { label: 'eˣ',     latex: 'e^{#?}' },
-              { label: '√',      latex: '\\sqrt{#?}' },
-              { label: 'ⁿ√',     latex: '\\sqrt[#?]{#?}' },
-              { label: '|x|',    latex: '\\left|#?\\right|' },
-              { label: '⌊x⌋',    latex: '\\lfloor #?\\rfloor' },
-              { label: '⌈x⌉',    latex: '\\lceil #?\\rceil' },
+              { label: 'eˣ',    latex: 'e^{#?}' },
+              { label: '√',     latex: '\\sqrt{#?}' },
+              { label: 'ⁿ√',    latex: '\\sqrt[#?]{#?}' },
+              { label: '|x|',   latex: '\\left|#?\\right|' },
+              { label: '⌊x⌋',   latex: '\\lfloor #?\\rfloor' },
+              { label: '⌈x⌉',   latex: '\\lceil #?\\rceil' },
             ],
           ],
         },
         'greek',
         {
-          label: '[ ]',
-          tooltip: 'Matrices & Vectors',
+          label: '[ ]', tooltip: 'Matrices & Vectors',
           rows: [
             [
-              { label: '2×2',    latex: '\\begin{pmatrix}#? & #?\\\\#? & #?\\end{pmatrix}', class: 'small' },
-              { label: '3×3',    latex: '\\begin{pmatrix}#?&#?&#?\\\\#?&#?&#?\\\\#?&#?&#?\\end{pmatrix}', class: 'small' },
-              { label: '2×1',    latex: '\\begin{pmatrix}#?\\\\#?\\end{pmatrix}', class: 'small' },
-              { label: '1×2',    latex: '\\begin{pmatrix}#?&#?\\end{pmatrix}', class: 'small' },
-              { label: '[2×2]',  latex: '\\begin{bmatrix}#?&#?\\\\#?&#?\\end{bmatrix}', class: 'small' },
-              { label: '|2×2|',  latex: '\\begin{vmatrix}#?&#?\\\\#?&#?\\end{vmatrix}', class: 'small' },
+              { label: '2×2',   latex: '\\begin{pmatrix}#? & #?\\\\#? & #?\\end{pmatrix}', class: 'small' },
+              { label: '3×3',   latex: '\\begin{pmatrix}#?&#?&#?\\\\#?&#?&#?\\\\#?&#?&#?\\end{pmatrix}', class: 'small' },
+              { label: '2×1',   latex: '\\begin{pmatrix}#?\\\\#?\\end{pmatrix}', class: 'small' },
+              { label: '1×2',   latex: '\\begin{pmatrix}#?&#?\\end{pmatrix}', class: 'small' },
+              { label: '[2×2]', latex: '\\begin{bmatrix}#?&#?\\\\#?&#?\\end{bmatrix}', class: 'small' },
+              { label: '|2×2|', latex: '\\begin{vmatrix}#?&#?\\\\#?&#?\\end{vmatrix}', class: 'small' },
             ],
             [
-              { label: 'Aᵀ',    latex: '#?^{\\intercal}' },
-              { label: 'A⁻¹',   latex: '#?^{-1}' },
-              { label: 'A⁻ᵀ',   latex: '#?^{-\\intercal}', class: 'small' },
-              { label: 'det',    latex: '\\det(#?)' },
-              { label: 'tr',     latex: '\\operatorname{tr}(#?)' },
-              { label: '‖A‖',    latex: '\\left\\|#?\\right\\|' },
+              { label: 'Aᵀ',   latex: '#?^{\\intercal}' },
+              { label: 'A⁻¹',  latex: '#?^{-1}' },
+              { label: 'A⁻ᵀ',  latex: '#?^{-\\intercal}', class: 'small' },
+              { label: 'det',   latex: '\\det(#?)' },
+              { label: 'tr',    latex: '\\operatorname{tr}(#?)' },
+              { label: '‖A‖',   latex: '\\left\\|#?\\right\\|' },
             ],
             [
-              { label: '·',      latex: '\\cdot' },
-              { label: '×',      latex: '\\times' },
-              { label: '⊗',      latex: '\\otimes' },
-              { label: '⊕',      latex: '\\oplus' },
-              { label: '→',      latex: '\\vec{#?}' },
-              { label: 'â',      latex: '\\hat{#?}' },
+              { label: '·',     latex: '\\cdot' },
+              { label: '×',     latex: '\\times' },
+              { label: '⊗',     latex: '\\otimes' },
+              { label: '⊕',     latex: '\\oplus' },
+              { label: '→',     latex: '\\vec{#?}' },
+              { label: 'â',     latex: '\\hat{#?}' },
             ],
           ],
         },
@@ -200,7 +219,6 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     mf.mathVirtualKeyboardPolicy = (isMobile ? 'onfocus' : 'manual') as any
 
     const handleInput = () => setHasMath(!!mf.getValue('latex').trim())
-
     const handleKeydown = (e: Event) => {
       const ke = e as KeyboardEvent
       if (ke.key === 'Enter' && !ke.shiftKey) {
@@ -250,31 +268,61 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
   const submit = useCallback(() => {
     const mf = mfRef.current
     if (!mf || loading) return
-    const latex = mf.getValue('latex').trim()
-    const mathText = latex ? `$$\n${latex}\n$$` : ''
+    const latexVal = mf.getValue('latex').trim()
+    const mathText = latexVal ? `$$\n${latexVal}\n$$` : ''
     const userText = textValue.trim()
-
     if (!mathText && !userText) return
 
     const combined = [mathText, userText].filter(Boolean).join('\n\n')
 
-    onSend(combined)
+    let bookContext: BookContext | undefined
+    if (activeBook) {
+      const chunks: BookChunk[] = searchBook(activeBook, combined)
+      if (chunks.length > 0) bookContext = { chunks }
+    }
+
+    onSend(combined, bookContext)
     mf.setValue('')
     setHasMath(false)
     setTextValue('')
     mf.focus()
-  }, [loading, onSend, textValue])
+  }, [loading, onSend, textValue, activeBook])
 
   useEffect(() => { submitRef.current = submit }, [submit])
 
   const toggleKeyboard = () => {
     const vk = window.mathVirtualKeyboard
     if (!vk) return
-    if (vk.visible) {
-      vk.hide()
-    } else {
-      mfRef.current?.focus()
-      vk.show()
+    if (vk.visible) { vk.hide() } else { mfRef.current?.focus(); vk.show() }
+  }
+
+  // Dropzone for PDF upload within the menu
+  const { getInputProps, open: openFilePicker } = useDropzone({
+    accept: { 'application/pdf': ['.pdf'] },
+    multiple: false,
+    noClick: true,
+    onDrop: (accepted) => {
+      if (accepted[0]) {
+        setUploadFile(accepted[0])
+        setUploadForm({ title: accepted[0].name.replace(/\.pdf$/i, ''), author: '' })
+      }
+    },
+  })
+
+  const handleUploadSubmit = async () => {
+    if (!uploadFile || !uploadForm.title) return
+    setUploading(true)
+    try {
+      const book = await indexBook(uploadFile, uploadForm.title, uploadForm.author)
+      setBooks((prev) => [...prev, book])
+      setUploadFile(null)
+      setUploadForm({ title: '', author: '' })
+      setMenuOpen(false)
+      setActiveBook(book)
+    } catch {
+      // Error state — keep form open
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -285,6 +333,82 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     <div className="math-input-bar" ref={barRef}>
       <div className="math-input-row">
 
+        {/* + action button */}
+        <div className="math-action-menu-wrap" ref={menuRef}>
+          <button
+            className={`math-action-btn${menuOpen ? ' active' : ''}`}
+            onClick={() => setMenuOpen((o) => !o)}
+            title="Actions"
+            type="button"
+          >
+            <Plus size={15} />
+          </button>
+
+          {menuOpen && (
+            <div className="math-action-menu">
+              {/* Keyboard toggle */}
+              <button
+                className="math-action-item"
+                onClick={() => { toggleKeyboard(); setMenuOpen(false) }}
+                type="button"
+              >
+                <Keyboard size={14} />
+                <span>Virtual keyboard</span>
+              </button>
+
+              <div className="math-action-divider" />
+
+              {/* Books section */}
+              <p className="math-action-section-label">Books</p>
+
+              {books.map((book) => (
+                <button
+                  key={book.id}
+                  className={`math-action-item book-item${activeBook?.id === book.id ? ' selected' : ''}`}
+                  onClick={() => { setActiveBook(activeBook?.id === book.id ? null : book); setMenuOpen(false) }}
+                  type="button"
+                >
+                  <BookOpen size={14} />
+                  <span className="math-action-book-title">{book.title}</span>
+                </button>
+              ))}
+
+              {/* Upload flow */}
+              {uploadFile ? (
+                <div className="math-action-upload-form">
+                  <input
+                    className="math-action-input"
+                    placeholder="Book title"
+                    value={uploadForm.title}
+                    onChange={(e) => setUploadForm((f) => ({ ...f, title: e.target.value }))}
+                  />
+                  <input
+                    className="math-action-input"
+                    placeholder="Author (optional)"
+                    value={uploadForm.author}
+                    onChange={(e) => setUploadForm((f) => ({ ...f, author: e.target.value }))}
+                  />
+                  <button
+                    className="math-action-upload-submit"
+                    onClick={handleUploadSubmit}
+                    disabled={uploading || !uploadForm.title}
+                    type="button"
+                  >
+                    {uploading ? 'Indexing…' : 'Index book'}
+                  </button>
+                </div>
+              ) : (
+                <button className="math-action-item" onClick={openFilePicker} type="button">
+                  <Upload size={14} />
+                  <span>Upload book (PDF)</span>
+                  <input {...getInputProps()} />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Keyboard toggle — standalone for quick access */}
         <button
           className="math-keyboard-toggle"
           onClick={toggleKeyboard}
@@ -293,6 +417,22 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
         >
           <Keyboard size={15} />
         </button>
+
+        {/* Active book chip */}
+        {activeBook && (
+          <div className="math-book-chip">
+            <BookOpen size={12} />
+            <span className="math-book-chip-title">{activeBook.title}</span>
+            <button
+              className="math-book-chip-dismiss"
+              onClick={() => setActiveBook(null)}
+              title="Remove active book"
+              type="button"
+            >
+              <X size={11} />
+            </button>
+          </div>
+        )}
 
         <div className="math-field-wrapper">
           <math-field

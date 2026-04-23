@@ -1,5 +1,5 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios'
-import type { TokenData, Session, Message, SolutionData, SaveSolutionData } from '../types'
+import type { TokenData, Session, Message, SolutionData, SaveSolutionData, PluginInfo, BookContext } from '../types'
 
 const api = axios.create({
   baseURL: '/api',
@@ -116,12 +116,35 @@ export async function saveMessage(token: string, sessionId: string, payload: Sav
 
 // ── Math endpoints ────────────────────────────────────────────────
 
-export async function sendChat(message: string): Promise<SolutionData> {
-  const { data } = await api.post<SolutionData>('/chat', { message })
+export async function sendChat(message: string, bookContext?: BookContext): Promise<SolutionData> {
+  const body: Record<string, unknown> = { message }
+  if (bookContext) body.book_context = bookContext
+  const { data } = await api.post<SolutionData>('/chat', body)
   return data
 }
 
 export async function solveExpression(expression: string): Promise<SolutionData> {
   const { data } = await api.post<SolutionData>('/solve', { expression })
+  return data
+}
+
+// ── Plugins ───────────────────────────────────────────────────────────────
+
+export async function fetchPlugins(token: string): Promise<PluginInfo[]> {
+  const { data } = await api.get<PluginInfo[]>('/plugins', authHeaders(token))
+  return data
+}
+
+export async function togglePlugin(token: string, name: string, enabled: boolean): Promise<PluginInfo> {
+  const { data } = await api.patch<PluginInfo>(`/plugins/${name}`, { enabled }, authHeaders(token))
+  return data
+}
+
+export async function detectBookPlugins(token: string, sampleIndex: unknown[]): Promise<{ recommended_plugins: string[] }> {
+  const { data } = await api.post<{ recommended_plugins: string[] }>(
+    '/plugins/book/detect',
+    { sample_index: sampleIndex },
+    authHeaders(token),
+  )
   return data
 }

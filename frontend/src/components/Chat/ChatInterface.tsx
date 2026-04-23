@@ -3,7 +3,7 @@ import { BlockMath } from 'react-katex'
 import { MessageRenderer, StepRenderer } from '../MathRenderer/MathRenderer'
 import { ChevronDown, AlertCircle } from 'lucide-react'
 import { ChatInput } from './ChatInput'
-import type { Message, SolutionData } from '../../types'
+import type { Message, SolutionData, BookContext } from '../../types'
 
 type AccordionVariant = 'default' | 'explanation' | 'tips'
 
@@ -147,7 +147,7 @@ function WelcomeScreen({ onPrompt }: { onPrompt: (text: string) => void }) {
 interface ChatInterfaceProps {
   messages: Message[]
   loading: boolean
-  onSendMessage: (text: string) => void
+  onSendMessage: (text: string, bookContext?: BookContext) => void
   onClearChat: () => void
   pushValue: string
   onClearPush: () => void
