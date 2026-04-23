@@ -9,6 +9,7 @@ Design:
 """
 
 import os
+import re
 import json
 import asyncio
 import logging
@@ -167,6 +168,9 @@ async def _extract_problem(user_message: str, chunks_text: str) -> dict[str, str
         temperature=0.1,
     )
     raw = resp.choices[0].message.content.strip()
+    # Some Groq model versions wrap JSON in markdown fences despite json_object mode
+    raw = re.sub(r"^```json\s*", "", raw)
+    raw = re.sub(r"```\s*$", "", raw).strip()
     return json.loads(raw)
 
 

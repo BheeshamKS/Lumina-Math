@@ -4,12 +4,14 @@ Load order: .env → app creation → middleware → routers.
 """
 
 import os
+import traceback
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from alembic.config import Config as AlembicConfig
 from alembic import command as alembic_command
 from pathlib import Path
@@ -34,6 +36,16 @@ app = FastAPI(
     version="1.0.0",
     on_startup=[_run_migrations],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    tb = traceback.format_exc()
+    print(f"UNHANDLED EXCEPTION on {request.method} {request.url}:\n{tb}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "type": type(exc).__name__},
+    )
 
 origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 

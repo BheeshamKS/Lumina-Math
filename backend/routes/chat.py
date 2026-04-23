@@ -115,11 +115,12 @@ async def chat(
     # ── SymPy solves ──────────────────────────────────────────────────────────
     try:
         if extraction:
-            raw = solve_from_extraction(
-                extraction["expression"],
-                extraction["operation"],
-                extraction.get("variable", "x"),
-            )
+            expression = extraction.get("expression", "").strip()
+            operation  = extraction.get("operation", "solve").strip()
+            variable   = extraction.get("variable", "x").strip() or "x"
+            if not expression:
+                raise ValueError("Groq extraction returned no expression.")
+            raw = solve_from_extraction(expression, operation, variable)
         else:
             raw = solve_problem(req.message.strip())
     except ValueError as exc:
