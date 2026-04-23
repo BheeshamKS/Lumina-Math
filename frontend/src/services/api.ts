@@ -118,7 +118,8 @@ export async function saveMessage(token: string, sessionId: string, payload: Sav
 
 export async function sendChat(message: string, bookContext?: BookContext): Promise<SolutionData> {
   const body: Record<string, unknown> = { message }
-  if (bookContext) body.book_context = bookContext
+  // Backend expects a flat list of chunks, not { chunks: [...] }
+  if (bookContext?.chunks?.length) body.book_context = bookContext.chunks
   const { data } = await api.post<SolutionData>('/chat', body)
   return data
 }

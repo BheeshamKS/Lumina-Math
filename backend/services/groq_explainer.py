@@ -100,38 +100,50 @@ async def _enrich(problem: str, steps: list[dict], final_answer: str) -> list[di
     ]
 
 
-async def extract_from_book_context(user_message: str, chunks: list[dict]) -> str:
+async def extract_problem_strict(user_message: str, chunks: list[dict]) -> str:
     """
-    Use Groq to extract the specific LaTeX math problem from book chunks + user message.
-    Returns a SymPy-ready problem string. Falls back to user_message on any failure.
+    Extract a math problem from book chunks using Groq.
+    Raises ValueError if the GROQ_API_KEY is missing, Groq times out, or
+    the response is empty — callers must convert this to an HTTP 422.
     """
-    if not chunks or not os.getenv("GROQ_API_KEY"):
-        return user_message
+    if not os.getenv("GROQ_API_KEY"):
+        raise ValueError("GROQ_API_KEY not configured")
+
+    chunks_text = "\n".join(c.get("latex_content", "") for c in chunks[:5])
 
     try:
-        return await asyncio.wait_for(_extract_book(user_message, chunks), timeout=10.0)
+        result = await asyncio.wait_for(
+            _extract_problem(user_message, chunks_text),
+            timeout=10.0,
+        )
+    except asyncio.TimeoutError:
+        raise ValueError("Groq extraction timed out")
     except Exception as exc:
-        logger.warning("Book context extraction failed — using raw message: %s", exc)
-        return user_message
+        raise ValueError(str(exc))
+
+    result = result.strip()
+    if not result:
+        raise ValueError("Empty extraction result")
+    return result
 
 
-async def _extract_book(user_message: str, chunks: list[dict]) -> str:
+async def _extract_problem(user_message: str, chunks_text: str) -> str:
     client = _get_client()
-
-    chunks_text = json.dumps(chunks[:5], ensure_ascii=False)  # cap at 5 chunks
-    prompt = (
-        f"User request: {user_message}\n\n"
-        f"Relevant textbook excerpts (JSON): {chunks_text}\n\n"
-        "Extract the specific math problem the user wants to solve. "
-        "Return ONLY the problem as a SymPy-ready expression or equation (plain text or LaTeX). "
-        "No explanation, no extra text — just the math problem string."
-    )
-
     resp = await client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=[
-            {"role": "system", "content": "You extract math problems from textbook context. Return only the raw math expression or equation."},
-            {"role": "user", "content": prompt},
+            {
+                "role": "system",
+                "content": (
+                    "You are a math extraction assistant. Given a textbook question and the user's "
+                    "natural-language request, extract ONLY the mathematical expression or equation "
+                    "to solve. Return ONLY the raw math — no explanation, no LaTeX delimiters."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Request: {user_message}\n\nQuestion text:\n{chunks_text}",
+            },
         ],
         max_tokens=256,
         temperature=0.1,

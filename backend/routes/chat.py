@@ -4,25 +4,24 @@ POST /chat — SymPy solver + Groq step explanations.
 Flow:
   1. Optional plugin gating: classify the problem domain, check if the
      required plugin is enabled for the authenticated user (if token provided).
-  2. Optional book context: if book_context is supplied, Groq first extracts
-     the LaTeX problem from the provided chunks.
-  3. SymPy solves the (possibly extracted) expression.
+  2. Optional book context: when book_context chunks are present Groq extracts
+     the actual math expression first; raises 422 if it cannot extract one.
+  3. SymPy solves the extracted (or raw) expression.
   4. Groq enriches each step with a plain-English explanation
      (single batch call, 8 s timeout, graceful degradation).
 """
 
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 from jose import jwt, JWTError
 import os
 
 from services.math_engine import solve_problem, classify_problem_domain
-from services.groq_explainer import explain_steps, extract_from_book_context
+from services.groq_explainer import explain_steps, extract_problem_strict
 from db.database import get_db
 from db import crud
 from sqlalchemy.orm import Session as DBSession
-from fastapi import Depends
 
 router = APIRouter()
 
@@ -35,13 +34,9 @@ class BookChunk(BaseModel):
     page: Optional[int] = None
 
 
-class BookContext(BaseModel):
-    chunks: list[BookChunk]
-
-
 class ChatRequest(BaseModel):
     message: str
-    book_context: Optional[BookContext] = None
+    book_context: Optional[list[BookChunk]] = None
 
 
 def _decode_token_soft(authorization: Optional[str]) -> Optional[str]:
@@ -60,27 +55,17 @@ def _decode_token_soft(authorization: Optional[str]) -> Optional[str]:
 
 
 def _to_solution(raw: dict) -> dict:
-    """
-    Normalize any math_engine result into the flat format the frontend expects:
-      { type: 'solution', steps: [...], final_answer: ... }
-    """
     steps = raw.get("steps", [])
-
     if raw.get("type") == "equation":
         solutions = raw.get("solutions", [])
         var = raw.get("variable", "x")
-        if solutions:
-            final_answer = " \\quad ".join(f"{var} = {s}" for s in solutions)
-        else:
-            final_answer = "\\text{No real solutions}"
+        final_answer = (
+            " \\quad ".join(f"{var} = {s}" for s in solutions)
+            if solutions else "\\text{No real solutions}"
+        )
     else:
         final_answer = raw.get("result", "")
-
-    return {
-        "type": "solution",
-        "steps": steps,
-        "final_answer": final_answer,
-    }
+    return {"type": "solution", "steps": steps, "final_answer": final_answer}
 
 
 @router.post("/chat")
@@ -100,20 +85,26 @@ async def chat(
             domain = classify_problem_domain(req.message.strip())
             if domain != "core":
                 overrides = crud.get_user_plugin_overrides(db, user.id)
-                # Plugin is disabled only if explicitly set to False in DB
                 if overrides.get(domain) is False:
                     raise HTTPException(
                         status_code=403,
                         detail=f"The '{domain}' plugin is disabled. Enable it in Plugin Settings to solve this problem.",
                     )
 
-    # ── Optional book context extraction ─────────────────────────────────────
-    problem_text = req.message.strip()
-    if req.book_context and req.book_context.chunks:
-        chunks_dicts = [c.model_dump() for c in req.book_context.chunks]
-        problem_text = await extract_from_book_context(problem_text, chunks_dicts)
+    # ── Book context extraction (hard path) ───────────────────────────────────
+    if req.book_context:
+        chunks_dicts = [c.model_dump() for c in req.book_context]
+        try:
+            problem_text = await extract_problem_strict(req.message.strip(), chunks_dicts)
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail="Could not extract a math problem from the selected question.",
+            )
+    else:
+        problem_text = req.message.strip()
 
-    # ── Step 1: SymPy solves ──────────────────────────────────────────────────
+    # ── SymPy solves ──────────────────────────────────────────────────────────
     try:
         raw = solve_problem(problem_text)
     except ValueError as exc:
@@ -123,7 +114,7 @@ async def chat(
 
     solution = _to_solution(raw)
 
-    # ── Step 2: Groq explains each step (best-effort) ─────────────────────────
+    # ── Groq explains each step (best-effort) ─────────────────────────────────
     solution["steps"] = await explain_steps(
         problem=req.message.strip(),
         steps=solution["steps"],

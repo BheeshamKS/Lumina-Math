@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react'
-import { Send, RotateCcw, Keyboard, Plus, X, BookOpen, Upload } from 'lucide-react'
+import { Send, RotateCcw, Plus, X, BookOpen, Upload } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import type { MathfieldElement } from 'mathlive'
 import type { Message, IndexedBook, BookContext, BookChunk } from '../../types'
@@ -19,18 +19,30 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
   const barRef    = useRef<HTMLDivElement | null>(null)
   const menuRef   = useRef<HTMLDivElement | null>(null)
   const submitRef = useRef<(() => void) | null>(null)
-  const [hasMath, setHasMath]         = useState(false)
-  const [textValue, setTextValue]     = useState('')
-  const [menuOpen, setMenuOpen]       = useState(false)
-  const [books, setBooks]             = useState<IndexedBook[]>([])
-  const [activeBook, setActiveBook]   = useState<IndexedBook | null>(null)
-  const [uploading, setUploading]     = useState(false)
-  const [uploadForm, setUploadForm]   = useState<{ title: string; author: string }>({ title: '', author: '' })
-  const [uploadFile, setUploadFile]   = useState<File | null>(null)
+
+  const [hasMath, setHasMath]       = useState(false)
+  const [textValue, setTextValue]   = useState('')
+  const [menuOpen, setMenuOpen]     = useState(false)
+  const [books, setBooks]           = useState<IndexedBook[]>([])
+  const [activeBook, setActiveBook] = useState<IndexedBook | null>(null)
+  const [uploading, setUploading]   = useState(false)
+  const [uploadForm, setUploadForm] = useState<{ title: string; author: string }>({ title: '', author: '' })
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
 
   // Load books from IndexedDB on mount
   useEffect(() => {
     listBooks().then(setBooks).catch(() => {})
+  }, [])
+
+  // Listen for book-deleted event from PluginPanel to clear the active chip
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { id } = (e as CustomEvent<{ id: string }>).detail
+      setActiveBook((prev) => (prev?.id === id ? null : prev))
+      setBooks((prev) => prev.filter((b) => b.id !== id))
+    }
+    window.addEventListener('lumina:book-deleted', handler)
+    return () => window.removeEventListener('lumina:book-deleted', handler)
   }, [])
 
   // Close menu on outside click
@@ -296,7 +308,7 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
     if (vk.visible) { vk.hide() } else { mfRef.current?.focus(); vk.show() }
   }
 
-  // Dropzone for PDF upload within the menu
+  // Dropzone for PDF upload within the + menu
   const { getInputProps, open: openFilePicker } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
     multiple: false,
@@ -319,8 +331,10 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
       setUploadForm({ title: '', author: '' })
       setMenuOpen(false)
       setActiveBook(book)
+      // Notify PluginPanel (if open) to refresh its book list
+      window.dispatchEvent(new CustomEvent('lumina:books-updated'))
     } catch {
-      // Error state — keep form open
+      // Keep form open so user can retry
     } finally {
       setUploading(false)
     }
@@ -331,9 +345,10 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
 
   return (
     <div className="math-input-bar" ref={barRef}>
+      {/* Unified pill container — the visual boundary for the entire row */}
       <div className="math-input-row">
 
-        {/* + action button */}
+        {/* + action menu */}
         <div className="math-action-menu-wrap" ref={menuRef}>
           <button
             className={`math-action-btn${menuOpen ? ' active' : ''}`}
@@ -346,25 +361,22 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
 
           {menuOpen && (
             <div className="math-action-menu">
-              {/* Keyboard toggle */}
               <button
                 className="math-action-item"
                 onClick={() => { toggleKeyboard(); setMenuOpen(false) }}
                 type="button"
               >
-                <Keyboard size={14} />
+                <span className="math-action-item-icon">⌨</span>
                 <span>Virtual keyboard</span>
               </button>
 
               <div className="math-action-divider" />
-
-              {/* Books section */}
               <p className="math-action-section-label">Books</p>
 
               {books.map((book) => (
                 <button
                   key={book.id}
-                  className={`math-action-item book-item${activeBook?.id === book.id ? ' selected' : ''}`}
+                  className={`math-action-item${activeBook?.id === book.id ? ' selected' : ''}`}
                   onClick={() => { setActiveBook(activeBook?.id === book.id ? null : book); setMenuOpen(false) }}
                   type="button"
                 >
@@ -373,7 +385,6 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
                 </button>
               ))}
 
-              {/* Upload flow */}
               {uploadFile ? (
                 <div className="math-action-upload-form">
                   <input
@@ -408,20 +419,10 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
           )}
         </div>
 
-        {/* Keyboard toggle — standalone for quick access */}
-        <button
-          className="math-keyboard-toggle"
-          onClick={toggleKeyboard}
-          title="Toggle keyboard"
-          type="button"
-        >
-          <Keyboard size={15} />
-        </button>
-
-        {/* Active book chip */}
+        {/* Active book chip — between + and the field */}
         {activeBook && (
           <div className="math-book-chip">
-            <BookOpen size={12} />
+            <BookOpen size={11} />
             <span className="math-book-chip-title">{activeBook.title}</span>
             <button
               className="math-book-chip-dismiss"
@@ -429,38 +430,43 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
               title="Remove active book"
               type="button"
             >
-              <X size={11} />
+              <X size={10} />
             </button>
           </div>
         )}
 
-        <div className="math-field-wrapper">
-          <math-field
-            ref={mfRef}
-            className="math-field-el"
-            placeholder="Enter an equation (e.g. 2x + 4 = 8)"
-            aria-label="Math input"
-          />
-          <textarea
-            className="math-input-textarea"
-            placeholder="Add instructions (e.g. 'How do I solve this?', or leave blank)"
-            value={textValue}
-            onChange={(e) => {
-              setTextValue(e.target.value)
-              e.target.style.height = 'auto'
-              e.target.style.height = (e.target.scrollHeight) + 'px'
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                submitRef.current?.()
-              }
-            }}
-            rows={1}
-            disabled={loading}
-          />
-        </div>
+        {/* Math field — flex: 2 */}
+        <math-field
+          ref={mfRef}
+          className="math-field-el"
+          placeholder="Enter an equation…"
+          aria-label="Math input"
+        />
 
+        {/* Visual separator between math and text inputs */}
+        <div className="math-field-sep" aria-hidden="true" />
+
+        {/* Instructions textarea — flex: 1 */}
+        <textarea
+          className="math-input-textarea"
+          placeholder="Add instructions or leave blank"
+          value={textValue}
+          onChange={(e) => {
+            setTextValue(e.target.value)
+            e.target.style.height = 'auto'
+            e.target.style.height = e.target.scrollHeight + 'px'
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              submitRef.current?.()
+            }
+          }}
+          rows={1}
+          disabled={loading}
+        />
+
+        {/* Solve */}
         <button
           className={`math-input-send${canSend ? ' ready' : ''}`}
           onClick={submit}
@@ -471,6 +477,7 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
           <span>Solve</span>
         </button>
 
+        {/* Clear */}
         {!isEmpty && (
           <button
             className="math-input-icon-btn danger"
