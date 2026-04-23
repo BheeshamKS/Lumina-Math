@@ -3,7 +3,7 @@ import { Send, RotateCcw, Plus, X, BookOpen, Upload } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import type { MathfieldElement } from 'mathlive'
 import type { Message, IndexedBook, BookContext, BookChunk } from '../../types'
-import { listBooks, indexBook, searchBook } from '../../plugins/BookPlugin'
+import { listBooks, indexBook, searchBook, type BookSearchResult } from '../../plugins/BookPlugin'
 
 interface ChatInputProps {
   onSend: (text: string, bookContext?: BookContext) => void
@@ -28,6 +28,7 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
   const [uploading, setUploading]   = useState(false)
   const [uploadForm, setUploadForm] = useState<{ title: string; author: string }>({ title: '', author: '' })
   const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [bookSearchError, setBookSearchError] = useState<string | null>(null)
 
   // Load books from IndexedDB on mount
   useEffect(() => {
@@ -289,10 +290,15 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
 
     let bookContext: BookContext | undefined
     if (activeBook) {
-      const chunks: BookChunk[] = searchBook(activeBook, combined)
-      if (chunks.length > 0) bookContext = { chunks }
+      const result: BookSearchResult = searchBook(activeBook, combined)
+      if (result.notFound) {
+        setBookSearchError(result.notFound)
+        return
+      }
+      if (result.chunks.length > 0) bookContext = { chunks: result.chunks }
     }
 
+    setBookSearchError(null)
     onSend(combined, bookContext)
     mf.setValue('')
     setHasMath(false)
@@ -345,6 +351,11 @@ export function ChatInput({ onSend, loading, onClear, messages, pushValue, onCle
 
   return (
     <div className="math-input-bar" ref={barRef}>
+      {bookSearchError && (
+        <div className="math-book-search-error" role="alert">
+          {bookSearchError}
+        </div>
+      )}
       {/* Unified pill container — the visual boundary for the entire row */}
       <div className="math-input-row">
 

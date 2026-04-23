@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 import os
 
-from services.math_engine import solve_problem, classify_problem_domain
+from services.math_engine import solve_problem, classify_problem_domain, solve_from_extraction
 from services.groq_explainer import explain_steps, extract_problem_strict, explain_proof, ProofProblemError
 from db.database import get_db
 from db import crud
@@ -104,18 +104,24 @@ async def chat(
     if req.book_context:
         chunks_dicts = [c.model_dump() for c in req.book_context]
         try:
-            problem_text = await extract_problem_strict(req.message.strip(), chunks_dicts)
+            extraction = await extract_problem_strict(req.message.strip(), chunks_dicts)
         except ProofProblemError:
-            # Not a computable expression — route to Groq proof explanation
             return await explain_proof(req.message.strip(), chunks_dicts)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc))
     else:
-        problem_text = req.message.strip()
+        extraction = None
 
     # ── SymPy solves ──────────────────────────────────────────────────────────
     try:
-        raw = solve_problem(problem_text)
+        if extraction:
+            raw = solve_from_extraction(
+                extraction["expression"],
+                extraction["operation"],
+                extraction.get("variable", "x"),
+            )
+        else:
+            raw = solve_problem(req.message.strip())
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:

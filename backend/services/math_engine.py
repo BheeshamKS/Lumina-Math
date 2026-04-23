@@ -664,6 +664,113 @@ def solve_matrix_operation(text: str) -> dict[str, Any]:
         }
 
 
+def solve_eigenvalues(expression: str) -> dict[str, Any]:
+    """Find eigenvalues and eigenspaces of a matrix (expressed as Python list or LaTeX)."""
+    spans = _find_matrix_spans(expression)
+    if spans:
+        A = _parse_py_matrix(spans[0])
+    else:
+        matrices = _parse_latex_matrices(expression)
+        if not matrices:
+            raise ValueError(f"No matrix found in: {expression!r}")
+        A = matrices[0]
+
+    if A.shape[0] != A.shape[1]:
+        raise ValueError("Eigenvalue analysis requires a square matrix.")
+
+    n = A.shape[0]
+    lam = sp.Symbol('lambda')
+
+    steps: list[dict] = [
+        {"description": "Matrix A", "expression": latex(A)},
+    ]
+
+    # Characteristic polynomial
+    char_poly = sp.expand((A - lam * sp.eye(n)).det())
+    steps.append({
+        "description": r"Characteristic equation \(\det(A - \lambda I) = 0\)",
+        "expression": f"{latex(char_poly)} = 0",
+    })
+
+    # Eigenvalues + eigenvectors
+    eigenvects = A.eigenvects()  # [(eigenvalue, multiplicity, [basis_vectors]), ...]
+
+    eigenvalue_parts: list[str] = []
+    for ev, mult, _ in eigenvects:
+        s = f"\\lambda = {latex(ev)}"
+        if mult > 1:
+            s += f"\\;(\\text{{multiplicity }}\\,{mult})"
+        eigenvalue_parts.append(s)
+
+    steps.append({
+        "description": "Eigenvalues",
+        "expression": ",\\quad ".join(eigenvalue_parts),
+    })
+
+    # Eigenspaces
+    for ev, _, vects in eigenvects:
+        basis_latex = ",\\quad ".join(latex(sp.Matrix(v)) for v in vects)
+        steps.append({
+            "description": f"Eigenspace for \\(\\lambda = {latex(ev)}\\)",
+            "expression": f"\\text{{Basis: }}\\left\\{{\\, {basis_latex} \\,\\right\\}}",
+        })
+
+    if len(eigenvects) == 1:
+        final = f"\\lambda = {latex(eigenvects[0][0])}"
+    else:
+        final = ",\\quad ".join(
+            f"\\lambda_{{{i + 1}}} = {latex(ev)}"
+            for i, (ev, _, _) in enumerate(eigenvects)
+        )
+
+    return {"type": "matrix", "steps": steps, "result": final}
+
+
+def solve_from_extraction(expression: str, operation: str, variable: str = "x") -> dict[str, Any]:
+    """
+    Route to the correct SymPy solver based on the operation extracted from a book problem.
+    Falls back to solve_problem() for unrecognised operations.
+    """
+    op = operation.strip().lower()
+
+    if op in ("eigenvalues", "eigenvalue", "eigenvectors", "eigenspace", "eigenspaces",
+              "characteristic", "diagonalize"):
+        return solve_eigenvalues(expression)
+
+    if op in ("determinant", "det"):
+        return solve_matrix_operation(f"det {expression}")
+
+    if op in ("inverse",):
+        return solve_matrix_operation(f"inverse {expression}")
+
+    if op in ("transpose",):
+        return solve_matrix_operation(f"transpose {expression}")
+
+    if op in ("integrate", "integral"):
+        text = _preprocess_latex(expression)
+        if f"d{variable}" not in text:
+            text = f"integrate {text} d{variable}"
+        return solve_integral(text)
+
+    if op in ("differentiate", "derivative", "diff"):
+        text = _preprocess_latex(expression)
+        if "d/d" not in text and "diff" not in text:
+            text = f"d/d{variable}({text})"
+        return solve_derivative(text)
+
+    if op == "limit":
+        return solve_limit(_preprocess_latex(expression))
+
+    if op == "factor":
+        return solve_factor(_preprocess_latex(expression))
+
+    if op == "simplify":
+        return solve_simplify(_preprocess_latex(expression))
+
+    # Default: let the full dispatcher handle it (solve, expand, equation, etc.)
+    return solve_problem(expression)
+
+
 # ── main dispatcher ──────────────────────────────────────────────────────────
 
 def solve_problem(text: str) -> dict[str, Any]:

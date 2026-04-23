@@ -365,11 +365,14 @@
   margin-bottom: 16px;
 }
 .sdoc-answer-math {
-  width: 100%; overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
 }
 .sdoc-answer .katex,
 .sdoc-answer .katex-display .katex { font-size: 2.2rem !important; color: var(--text-primary); }
-.sdoc-answer .katex-display { margin: 0; padding: 0; }
+.sdoc-answer .katex-display { margin: 0; padding: 0 0 4px; overflow-x: auto; }
 
 .sdoc-answer-qed {
   position: absolute;
@@ -720,6 +723,18 @@
   transition: opacity 0.15s ease;
 }
 .math-book-chip-dismiss:hover { opacity: 1; }
+
+/* ── Book search not-found banner ───────────────────────────────── */
+.math-book-search-error {
+  font-size: 0.8rem;
+  color: var(--accent-coral);
+  background: rgba(255, 107, 107, 0.08);
+  border: 1px solid rgba(255, 107, 107, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
 
 /* ── Solve button ───────────────────────────────────────────────── */
 .math-input-send {

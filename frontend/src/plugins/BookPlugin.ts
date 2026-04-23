@@ -88,76 +88,83 @@ async function extractText(file: File): Promise<string> {
 
 // ── Indexing heuristics ───────────────────────────────────────────────────────
 
-// Matches: "Exercise 5.1", "5.1", "Section 3", "Chapter 2"
-const EXERCISE_RE = /\b(?:exercise|ex\.?|section|problem)\s*(\d+(?:\.\d+)*)/gi
-// Matches: "7.", "Q7", "No. 7", "(7)"
-const QUESTION_RE = /(?:^|\s)(?:q(?:uestion)?\.?\s*|no\.?\s*|\()(\d{1,3})(?:\)|\.|\s|$)/gim
+// Matches exercise section headers: "Exercise 5.1", "EXERCISE SET 5.1", "Ex. 3.2"
+const EXERCISE_HEADER_RE = /\b(?:exercise(?:\s+set)?|ex\.?)\s*(\d+(?:\.\d+)*)/i
+// Matches a numbered problem at the START of a line: "7.", "7)", "(7)"
+// Must be at beginning of the trimmed line to avoid matching numbers inside text
+const QUESTION_START_RE = /^(\d{1,3})[.)]\s/
 // Matches LaTeX fragments
-const LATEX_RE    = /\$[^$]+\$|\$\$[\s\S]+?\$\$|\\[a-zA-Z]+(?:\{[^}]*\})+/g
+const LATEX_RE = /\$[^$]+\$|\$\$[\s\S]+?\$\$|\\[a-zA-Z]+(?:\{[^}]*\})+/g
 
 function buildIndex(fullText: string): BookChunk[] {
   const chunks: BookChunk[] = []
-  const lines   = fullText.split('\n')
+  const lines = fullText.split('\n')
   let chapterNum = 0
   let exerciseId: string | undefined
+  // Question numbers are STICKY — they persist until the next question number appears.
+  // This ensures multi-line problems (question on one line, matrix on the next) stay together.
   let questionNum: number | undefined
   let latexBuf: string[] = []
-  let pageNum  = 1
+  let pageNum = 1
+
+  const flush = () => {
+    if (latexBuf.length > 0) {
+      chunks.push({
+        chapter: chapterNum || undefined,
+        exercise: exerciseId,
+        question_number: questionNum,
+        latex_content: latexBuf.join(' '),
+        page: pageNum,
+      })
+      latexBuf = []
+    }
+  }
 
   for (const line of lines) {
-    // Track synthetic page boundaries (pdfjs separates pages with double newlines)
-    if (line.trim() === '') {
-      if (latexBuf.length > 0) {
-        chunks.push({
-          chapter: chapterNum || undefined,
-          exercise: exerciseId,
-          question_number: questionNum,
-          latex_content: latexBuf.join(' '),
-          page: pageNum,
-        })
-        latexBuf = []
-        questionNum = undefined
-      }
+    const trimmed = line.trim()
+
+    // Page boundary — flush the current chunk but keep exercise/question context
+    if (trimmed === '') {
+      flush()
       pageNum++
       continue
     }
 
-    // Chapter / exercise header
-    const exMatch = EXERCISE_RE.exec(line)
+    // Exercise section header (e.g., "EXERCISE SET 5.1")
+    const exMatch = EXERCISE_HEADER_RE.exec(trimmed)
     if (exMatch) {
-      exerciseId  = exMatch[1]
-      chapterNum  = parseInt(exerciseId.split('.')[0], 10) || chapterNum
-      EXERCISE_RE.lastIndex = 0
+      flush()
+      exerciseId = exMatch[1]
+      chapterNum = parseInt(exerciseId.split('.')[0], 10) || chapterNum
+      // Reset question number when entering a new exercise section
+      questionNum = undefined
+      continue
     }
 
-    // Question number
-    const qMatch = QUESTION_RE.exec(line)
-    if (qMatch) {
-      questionNum = parseInt(qMatch[1], 10)
-      QUESTION_RE.lastIndex = 0
+    // Numbered problem at start of line (e.g., "7. Find the eigenvalues...")
+    // Only recognised when we're already inside an exercise section
+    if (exerciseId) {
+      const qMatch = QUESTION_START_RE.exec(trimmed)
+      if (qMatch) {
+        flush()
+        questionNum = parseInt(qMatch[1], 10)
+        // Include the rest of this line (the problem statement) in the new chunk
+        const rest = trimmed.slice(qMatch[0].length).trim()
+        if (rest.length > 0) latexBuf.push(rest)
+        continue
+      }
     }
 
-    // Accumulate LaTeX fragments
-    const latexMatches = line.match(LATEX_RE)
+    // Accumulate content lines — include LaTeX fragments and any substantive text
+    const latexMatches = trimmed.match(LATEX_RE)
     if (latexMatches) {
       latexBuf.push(...latexMatches)
-    } else if (line.trim().length > 4) {
-      // Include short non-LaTeX text that might be math (e.g. "x^2 + 2x = 0")
-      latexBuf.push(line.trim())
+    } else if (trimmed.length > 4) {
+      latexBuf.push(trimmed)
     }
   }
 
-  // Flush remaining buffer
-  if (latexBuf.length > 0) {
-    chunks.push({
-      chapter: chapterNum || undefined,
-      exercise: exerciseId,
-      question_number: questionNum,
-      latex_content: latexBuf.join(' '),
-      page: pageNum,
-    })
-  }
-
+  flush()
   return chunks
 }
 
@@ -199,29 +206,51 @@ export async function indexBook(
   return book
 }
 
+export interface BookSearchResult {
+  chunks: BookChunk[]
+  /** Set when the query had an exercise/question reference but nothing matched in the index. */
+  notFound?: string
+}
+
 /**
- * Search the book's index for chunks relevant to a user query.
- * Parses exercise and question references from the query text.
+ * Search the book's index using ONLY structural fields (exercise + question_number).
+ * Never falls back to fuzzy/semantic matching.
  */
-export function searchBook(book: IndexedBook, query: string): BookChunk[] {
+export function searchBook(book: IndexedBook, query: string): BookSearchResult {
   const q = query.toLowerCase()
 
-  // Try to extract exercise ref: "ex 5.1", "exercise 3.2", "5.1"
-  const exMatch = /\b(?:ex(?:ercise)?\.?\s*)?(\d+\.\d+)/i.exec(q)
+  // Exercise reference: "ex 5.1", "exercise 3.2", "5.1"
+  const exMatch = /\b(?:ex(?:ercise)?(?:\s+set)?\s*\.?\s*)?(\d+\.\d+)/i.exec(q)
   const exerciseRef = exMatch ? exMatch[1] : null
 
-  // Try to extract question number: "q7", "question 7", "no 7", "#7"
-  const qMatch = /\b(?:q(?:uestion)?\.?\s*|no\.?\s*|#)(\d{1,3})\b/i.exec(q)
-  const questionRef = qMatch ? parseInt(qMatch[1], 10) : null
+  // Question number: "q7", "q 7", "question 7", "no 7", "#7"
+  const qNumMatch = /\b(?:q(?:uestion)?\s*\.?\s*|no\.?\s*|#)(\d{1,3})\b/i.exec(q)
+  const questionRef = qNumMatch ? parseInt(qNumMatch[1], 10) : null
 
+  // No reference at all — return a few recent chunks, no error
   if (!exerciseRef && !questionRef) {
-    // No specific reference — return up to 5 most-recent chunks
-    return book.index.slice(-5)
+    return { chunks: book.index.slice(-5) }
   }
 
-  return book.index.filter((chunk) => {
-    const exMatch = exerciseRef ? chunk.exercise === exerciseRef : true
-    const qMatch  = questionRef ? chunk.question_number === questionRef : true
-    return exMatch && qMatch
-  }).slice(0, 5)
+  // Exact structural match: both exercise AND question_number (if both specified)
+  const exact = book.index.filter((chunk) => {
+    const exOk = exerciseRef ? chunk.exercise === exerciseRef : true
+    const qOk  = questionRef ? chunk.question_number === questionRef : true
+    return exOk && qOk
+  })
+
+  if (exact.length > 0) {
+    return { chunks: exact.slice(0, 8) }
+  }
+
+  // Nothing matched — tell the user rather than silently sending wrong context
+  const ref = [
+    exerciseRef ? `Exercise ${exerciseRef}` : '',
+    questionRef ? `Question ${questionRef}` : '',
+  ].filter(Boolean).join(', ')
+
+  return {
+    chunks: [],
+    notFound: `${ref} was not found in the index. The book may need to be re-indexed.`,
+  }
 }

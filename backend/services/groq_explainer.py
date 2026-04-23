@@ -104,11 +104,12 @@ async def _enrich(problem: str, steps: list[dict], final_answer: str) -> list[di
     ]
 
 
-async def extract_problem_strict(user_message: str, chunks: list[dict]) -> str:
+async def extract_problem_strict(user_message: str, chunks: list[dict]) -> dict[str, str]:
     """
-    Extract a math problem from book chunks using Groq.
-    Raises ValueError if the GROQ_API_KEY is missing, Groq times out, or
-    the response is empty — callers must convert this to an HTTP 422.
+    Extract a structured problem from book chunks using Groq.
+    Returns {"expression": ..., "operation": ..., "variable": ...}.
+    Raises ProofProblemError for proof/conceptual problems.
+    Raises ValueError for other failures (timeout, missing API key, etc.).
     """
     if not os.getenv("GROQ_API_KEY"):
         raise ValueError("GROQ_API_KEY not configured")
@@ -125,41 +126,48 @@ async def extract_problem_strict(user_message: str, chunks: list[dict]) -> str:
     except Exception as exc:
         raise ValueError(str(exc))
 
-    result = result.strip()
-    if not result:
-        raise ValueError("Empty extraction result")
-    if result == "PROOF_PROBLEM" or "..." in result:
+    if result.get("operation") == "proof" or not result.get("expression", "").strip():
         raise ProofProblemError("proof_problem")
+
     return result
 
 
-async def _extract_problem(user_message: str, chunks_text: str) -> str:
+async def _extract_problem(user_message: str, chunks_text: str) -> dict[str, str]:
     client = _get_client()
     resp = await client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "system",
                 "content": (
-                    "You are a math extraction assistant. Given a textbook passage and the user's request, "
-                    "extract a single mathematical expression or equation that a computer algebra system (SymPy) can evaluate.\n\n"
-                    "Rules:\n"
-                    "- Return ONLY the raw math — no explanation, no LaTeX delimiters ($, $$)\n"
-                    "- Valid examples: 'x^2 - 5x + 6 = 0', 'integrate sin(x)', 'd/dx(x^3)', 'det([[1,2],[3,4]])'\n"
-                    "- If the problem asks to SOLVE, SIMPLIFY, DIFFERENTIATE, INTEGRATE, or COMPUTE a concrete expression, extract that expression\n"
-                    "- If the problem is a PROOF, VERIFICATION of a general theorem, or uses '...' to denote arbitrary terms, return exactly: PROOF_PROBLEM\n"
-                    "- If you cannot identify a specific computable expression, return exactly: PROOF_PROBLEM"
+                    "You are a math extraction assistant working with textbook content.\n"
+                    "Given the raw text of a specific textbook question and the user's request,\n"
+                    "extract the mathematical problem.\n\n"
+                    "Return ONLY a JSON object with:\n"
+                    '- "expression": the matrix, equation, or expression to work with (raw notation, no LaTeX delimiters).\n'
+                    "  For matrices use Python list notation: [[1,2],[3,4]]\n"
+                    "  For equations use standard notation: x^2 - 5x + 6 = 0\n"
+                    '- "operation": one of: "eigenvalues", "solve", "integrate", "differentiate",\n'
+                    '  "factor", "simplify", "determinant", "inverse", "transpose", "limit"\n'
+                    '- "variable": the main variable (default "x")\n\n'
+                    "If the question is a proof or conceptual (not computationally solvable), return:\n"
+                    '{"operation": "proof", "expression": "", "variable": ""}\n\n'
+                    "CRITICAL: Use ONLY the question text provided. Never invent the problem.\n"
+                    "For eigenvalue problems, always write the matrix in Python list notation,\n"
+                    "e.g. [[4,0,1],[-2,1,0],[-2,0,1]]"
                 ),
             },
             {
                 "role": "user",
-                "content": f"Request: {user_message}\n\nTextbook passage:\n{chunks_text}",
+                "content": f"User request: {user_message}\n\nTextbook passage:\n{chunks_text}",
             },
         ],
-        max_tokens=256,
+        response_format={"type": "json_object"},
+        max_tokens=300,
         temperature=0.1,
     )
-    return resp.choices[0].message.content.strip()
+    raw = resp.choices[0].message.content.strip()
+    return json.loads(raw)
 
 
 async def detect_plugins_from_book(sample_index: list[dict]) -> list[str]:
