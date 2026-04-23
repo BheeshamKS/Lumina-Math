@@ -20,6 +20,10 @@ logger = logging.getLogger(__name__)
 _client: AsyncGroq | None = None
 
 
+class ProofProblemError(ValueError):
+    """Raised when a book problem is a proof/conceptual question, not a computable expression."""
+
+
 def _get_client() -> AsyncGroq:
     global _client
     if _client is None:
@@ -125,10 +129,7 @@ async def extract_problem_strict(user_message: str, chunks: list[dict]) -> str:
     if not result:
         raise ValueError("Empty extraction result")
     if result == "PROOF_PROBLEM" or "..." in result:
-        raise ValueError(
-            "This appears to be a proof or conceptual question — no concrete expression to compute. "
-            "Try entering the specific equation or expression you want solved directly."
-        )
+        raise ProofProblemError("proof_problem")
     return result
 
 
@@ -203,3 +204,91 @@ async def _detect_domains(sample_index: list[dict]) -> list[str]:
     plugins: list = parsed.get("plugins", [])
     valid = {"calculus", "linear_algebra", "statistics", "trigonometry", "number_theory", "core"}
     return [p for p in plugins if p in valid]
+
+
+async def explain_proof(user_message: str, chunks: list[dict]) -> dict:
+    """
+    For proof/conceptual problems, ask Groq to explain the approach step-by-step.
+    Returns a SolutionData-compatible dict:
+      { explanation, steps: [{description, explanation, expression?}], final_answer, tips? }
+    Falls back to a minimal response on any error.
+    """
+    if not os.getenv("GROQ_API_KEY"):
+        return _proof_fallback()
+
+    chunks_text = "\n".join(c.get("latex_content", "") for c in chunks[:5])
+
+    try:
+        return await asyncio.wait_for(
+            _run_proof_explanation(user_message, chunks_text),
+            timeout=15.0,
+        )
+    except Exception as exc:
+        logger.warning("Proof explanation failed: %s", exc)
+        return _proof_fallback()
+
+
+def _proof_fallback() -> dict:
+    return {
+        "explanation": "This is a proof or conceptual problem. Work through it using the definitions and theorems in your textbook.",
+        "steps": [{"description": "Review the relevant definitions and theorems.", "explanation": "Identify which concepts apply to this problem."}],
+        "final_answer": r"\text{See explanation above}",
+    }
+
+
+async def _run_proof_explanation(user_message: str, chunks_text: str) -> dict:
+    client = _get_client()
+
+    user_prompt = (
+        f"Student request: {user_message}\n\n"
+        f"Textbook passage:\n{chunks_text}\n\n"
+        "Provide a step-by-step explanation for this proof or conceptual problem."
+    )
+
+    resp = await client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a math tutor explaining a proof or conceptual problem from a textbook.\n\n"
+                    "Return ONLY valid JSON with these fields:\n"
+                    "- explanation: 2-3 sentence overview of the key idea and approach\n"
+                    "- steps: array of 3-6 objects, each with:\n"
+                    "    description (what to do, 1 sentence)\n"
+                    "    explanation (why, 1-2 sentences — use $...$ for inline LaTeX)\n"
+                    "    expression (optional — a key formula for this step, raw LaTeX, no delimiters)\n"
+                    "- final_answer: a brief LaTeX statement of the conclusion (use \\text{} for prose)\n"
+                    "- tips: 1-2 common mistakes to avoid (optional, plain string)\n\n"
+                    'Example: {"explanation":"...","steps":[{"description":"...","explanation":"...","expression":"..."}],'
+                    '"final_answer":"\\\\text{Therefore A is symmetric}","tips":"..."}'
+                ),
+            },
+            {"role": "user", "content": user_prompt},
+        ],
+        response_format={"type": "json_object"},
+        max_tokens=1500,
+        temperature=0.3,
+    )
+
+    raw = resp.choices[0].message.content.strip()
+    parsed = json.loads(raw)
+
+    steps = parsed.get("steps", [])
+    if not isinstance(steps, list):
+        steps = []
+
+    return {
+        "explanation": str(parsed.get("explanation", "")).strip(),
+        "steps": [
+            {
+                "description": str(s.get("description", "")).strip(),
+                "explanation": str(s.get("explanation", "")).strip(),
+                **({"expression": str(s["expression"]).strip()} if s.get("expression") else {}),
+            }
+            for s in steps
+            if isinstance(s, dict)
+        ],
+        "final_answer": str(parsed.get("final_answer", r"\text{See explanation above}")).strip(),
+        **({"tips": str(parsed["tips"]).strip()} if parsed.get("tips") else {}),
+    }

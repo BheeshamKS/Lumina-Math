@@ -17,7 +17,7 @@ from pydantic import BaseModel
 import os
 
 from services.math_engine import solve_problem, classify_problem_domain
-from services.groq_explainer import explain_steps, extract_problem_strict
+from services.groq_explainer import explain_steps, extract_problem_strict, explain_proof, ProofProblemError
 from db.database import get_db
 from db import crud
 from sqlalchemy.orm import Session as DBSession
@@ -99,11 +99,15 @@ async def chat(
                         detail=f"The '{domain}' plugin is disabled. Enable it in Plugin Settings to solve this problem.",
                     )
 
-    # ── Book context extraction (hard path) ───────────────────────────────────
+    # ── Book context extraction ───────────────────────────────────────────────
+    chunks_dicts: list[dict] = []
     if req.book_context:
         chunks_dicts = [c.model_dump() for c in req.book_context]
         try:
             problem_text = await extract_problem_strict(req.message.strip(), chunks_dicts)
+        except ProofProblemError:
+            # Not a computable expression — route to Groq proof explanation
+            return await explain_proof(req.message.strip(), chunks_dicts)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc))
     else:
